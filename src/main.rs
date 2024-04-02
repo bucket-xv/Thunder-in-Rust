@@ -1,460 +1,817 @@
-//! A simplified implementation of the classic game "Breakout".
+//! This example will display a simple menu using Bevy UI where you can start a new game,
+//! change some settings or quit. There is no actual game, it will just display the current
+//! settings for 5 seconds before going back to the menu.
 
-use bevy::{
-    math::bounding::{Aabb2d, BoundingCircle, BoundingVolume, IntersectsVolume},
-    prelude::*,
-    sprite::MaterialMesh2dBundle,
-};
+use bevy::prelude::*;
 
-mod stepping;
+const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 
-// These constants are defined in `Transform` units.
-// Using the default 2D camera they correspond 1:1 with screen pixels.
-const PADDLE_SIZE: Vec3 = Vec3::new(120.0, 20.0, 0.0);
-const GAP_BETWEEN_PADDLE_AND_FLOOR: f32 = 60.0;
-const PADDLE_SPEED: f32 = 500.0;
-// How close can the paddle get to the wall
-const PADDLE_PADDING: f32 = 10.0;
+// Enum that will be used as a global state for the game
+#[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
+enum GameState {
+    #[default]
+    Splash,
+    Menu,
+    Game,
+}
 
-// We set the z-value of the ball to 1 so it renders on top in the case of overlapping sprites.
-const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 1.0);
-const BALL_DIAMETER: f32 = 30.;
-const BALL_SPEED: f32 = 400.0;
-const INITIAL_BALL_DIRECTION: Vec2 = Vec2::new(0.5, -0.5);
+// One of the two settings that can be set through the menu. It will be a resource in the app
+#[derive(Resource, Debug, Component, PartialEq, Eq, Clone, Copy)]
+enum DisplayQuality {
+    Low,
+    Medium,
+    High,
+}
 
-const WALL_THICKNESS: f32 = 10.0;
-// x coordinates
-const LEFT_WALL: f32 = -450.;
-const RIGHT_WALL: f32 = 450.;
-// y coordinates
-const BOTTOM_WALL: f32 = -300.;
-const TOP_WALL: f32 = 300.;
-
-const BRICK_SIZE: Vec2 = Vec2::new(100., 30.);
-// These values are exact
-const GAP_BETWEEN_PADDLE_AND_BRICKS: f32 = 270.0;
-const GAP_BETWEEN_BRICKS: f32 = 5.0;
-// These values are lower bounds, as the number of bricks is computed
-const GAP_BETWEEN_BRICKS_AND_CEILING: f32 = 20.0;
-const GAP_BETWEEN_BRICKS_AND_SIDES: f32 = 20.0;
-
-const SCOREBOARD_FONT_SIZE: f32 = 40.0;
-const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
-
-const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
-const PADDLE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
-const BALL_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
-const BRICK_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
-const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
-const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
-const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
+// One of the two settings that can be set through the menu. It will be a resource in the app
+#[derive(Resource, Debug, Component, PartialEq, Eq, Clone, Copy)]
+struct Volume(u32);
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(
-            stepping::SteppingPlugin::default()
-                .add_schedule(Update)
-                .add_schedule(FixedUpdate)
-                .at(Val::Percent(35.0), Val::Percent(50.0)),
-        )
-        .insert_resource(Scoreboard { score: 0 })
-        .insert_resource(ClearColor(BACKGROUND_COLOR))
-        .add_event::<CollisionEvent>()
+        // Insert as resource the initial value for the settings resources
+        .insert_resource(DisplayQuality::Medium)
+        .insert_resource(Volume(7))
+        // Declare the game state, whose starting value is determined by the `Default` trait
+        .init_state::<GameState>()
         .add_systems(Startup, setup)
-        // Add our gameplay simulation systems to the fixed timestep schedule
-        // which runs at 64 Hz by default
-        .add_systems(
-            FixedUpdate,
-            (
-                apply_velocity,
-                move_paddle,
-                check_for_collisions,
-                play_collision_sound,
-            )
-                // `chain`ing systems together runs them in order
-                .chain(),
-        )
-        .add_systems(Update, (update_scoreboard, bevy::window::close_on_esc))
+        // Adds the plugins for each state
+        .add_plugins((splash::splash_plugin, menu::menu_plugin, game::game_plugin))
         .run();
 }
 
-#[derive(Component)]
-struct Paddle;
-
-#[derive(Component)]
-struct Ball;
-
-#[derive(Component, Deref, DerefMut)]
-struct Velocity(Vec2);
-
-#[derive(Component)]
-struct Collider;
-
-#[derive(Event, Default)]
-struct CollisionEvent;
-
-#[derive(Component)]
-struct Brick;
-
-#[derive(Resource)]
-struct CollisionSound(Handle<AudioSource>);
-
-// This bundle is a collection of the components that define a "wall" in our game
-#[derive(Bundle)]
-struct WallBundle {
-    // You can nest bundles inside of other bundles like this
-    // Allowing you to compose their functionality
-    sprite_bundle: SpriteBundle,
-    collider: Collider,
-}
-
-/// Which side of the arena is this wall located on?
-enum WallLocation {
-    Left,
-    Right,
-    Bottom,
-    Top,
-}
-
-impl WallLocation {
-    fn position(&self) -> Vec2 {
-        match self {
-            WallLocation::Left => Vec2::new(LEFT_WALL, 0.),
-            WallLocation::Right => Vec2::new(RIGHT_WALL, 0.),
-            WallLocation::Bottom => Vec2::new(0., BOTTOM_WALL),
-            WallLocation::Top => Vec2::new(0., TOP_WALL),
-        }
-    }
-
-    fn size(&self) -> Vec2 {
-        let arena_height = TOP_WALL - BOTTOM_WALL;
-        let arena_width = RIGHT_WALL - LEFT_WALL;
-        // Make sure we haven't messed up our constants
-        assert!(arena_height > 0.0);
-        assert!(arena_width > 0.0);
-
-        match self {
-            WallLocation::Left | WallLocation::Right => {
-                Vec2::new(WALL_THICKNESS, arena_height + WALL_THICKNESS)
-            }
-            WallLocation::Bottom | WallLocation::Top => {
-                Vec2::new(arena_width + WALL_THICKNESS, WALL_THICKNESS)
-            }
-        }
-    }
-}
-
-impl WallBundle {
-    // This "builder method" allows us to reuse logic across our wall entities,
-    // making our code easier to read and less prone to bugs when we change the logic
-    fn new(location: WallLocation) -> WallBundle {
-        WallBundle {
-            sprite_bundle: SpriteBundle {
-                transform: Transform {
-                    // We need to convert our Vec2 into a Vec3, by giving it a z-coordinate
-                    // This is used to determine the order of our sprites
-                    translation: location.position().extend(0.0),
-                    // The z-scale of 2D objects must always be 1.0,
-                    // or their ordering will be affected in surprising ways.
-                    // See https://github.com/bevyengine/bevy/issues/4149
-                    scale: location.size().extend(1.0),
-                    ..default()
-                },
-                sprite: Sprite {
-                    color: WALL_COLOR,
-                    ..default()
-                },
-                ..default()
-            },
-            collider: Collider,
-        }
-    }
-}
-
-// This resource tracks the game's score
-#[derive(Resource)]
-struct Scoreboard {
-    score: usize,
-}
-
-#[derive(Component)]
-struct ScoreboardUi;
-
-// Add the game's entities to our world
-fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    asset_server: Res<AssetServer>,
-) {
-    // Camera
+fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
+}
 
-    // Sound
-    let ball_collision_sound = asset_server.load("sounds/breakout_collision.ogg");
-    commands.insert_resource(CollisionSound(ball_collision_sound));
+mod splash {
+    use bevy::prelude::*;
 
-    // Paddle
-    let paddle_y = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
+    use super::{despawn_screen, GameState};
 
-    commands.spawn((
-        SpriteBundle {
-            transform: Transform {
-                translation: Vec3::new(0.0, paddle_y, 0.0),
-                scale: PADDLE_SIZE,
-                ..default()
-            },
-            sprite: Sprite {
-                color: PADDLE_COLOR,
-                ..default()
-            },
-            ..default()
-        },
-        Paddle,
-        Collider,
-    ));
+    // This plugin will display a splash screen with Bevy logo for 1 second before switching to the menu
+    pub fn splash_plugin(app: &mut App) {
+        // As this plugin is managing the splash screen, it will focus on the state `GameState::Splash`
+        app
+            // When entering the state, spawn everything needed for this screen
+            .add_systems(OnEnter(GameState::Splash), splash_setup)
+            // While in this state, run the `countdown` system
+            .add_systems(Update, countdown.run_if(in_state(GameState::Splash)))
+            // When exiting the state, despawn everything that was spawned for this screen
+            .add_systems(OnExit(GameState::Splash), despawn_screen::<OnSplashScreen>);
+    }
 
-    // Ball
-    commands.spawn((
-        MaterialMesh2dBundle {
-            mesh: meshes.add(Circle::default()).into(),
-            material: materials.add(BALL_COLOR),
-            transform: Transform::from_translation(BALL_STARTING_POSITION)
-                .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.)),
-            ..default()
-        },
-        Ball,
-        Velocity(INITIAL_BALL_DIRECTION.normalize() * BALL_SPEED),
-    ));
+    // Tag component used to tag entities added on the splash screen
+    #[derive(Component)]
+    struct OnSplashScreen;
 
-    // Scoreboard
-    commands.spawn((
-        ScoreboardUi,
-        TextBundle::from_sections([
-            TextSection::new(
-                "Score: ",
-                TextStyle {
-                    font_size: SCOREBOARD_FONT_SIZE,
-                    color: TEXT_COLOR,
+    // Newtype to use a `Timer` for this screen as a resource
+    #[derive(Resource, Deref, DerefMut)]
+    struct SplashTimer(Timer);
+
+    fn splash_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+        let icon = asset_server.load("branding/icon.png");
+        // Display the logo
+        commands
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        ..default()
+                    },
                     ..default()
                 },
-            ),
-            TextSection::from_style(TextStyle {
-                font_size: SCOREBOARD_FONT_SIZE,
-                color: SCORE_COLOR,
-                ..default()
-            }),
-        ])
-        .with_style(Style {
-            position_type: PositionType::Absolute,
-            top: SCOREBOARD_TEXT_PADDING,
-            left: SCOREBOARD_TEXT_PADDING,
-            ..default()
-        }),
-    ));
+                OnSplashScreen,
+            ))
+            .with_children(|parent| {
+                parent.spawn(ImageBundle {
+                    style: Style {
+                        // This will set the logo to be 200px wide, and auto adjust its height
+                        width: Val::Px(200.0),
+                        ..default()
+                    },
+                    image: UiImage::new(icon),
+                    ..default()
+                });
+            });
+        // Insert the timer as a resource
+        commands.insert_resource(SplashTimer(Timer::from_seconds(1.0, TimerMode::Once)));
+    }
 
-    // Walls
-    commands.spawn(WallBundle::new(WallLocation::Left));
-    commands.spawn(WallBundle::new(WallLocation::Right));
-    commands.spawn(WallBundle::new(WallLocation::Bottom));
-    commands.spawn(WallBundle::new(WallLocation::Top));
+    // Tick the timer, and change state when finished
+    fn countdown(
+        mut game_state: ResMut<NextState<GameState>>,
+        time: Res<Time>,
+        mut timer: ResMut<SplashTimer>,
+    ) {
+        if timer.tick(time.delta()).finished() {
+            game_state.set(GameState::Menu);
+        }
+    }
+}
 
-    // Bricks
-    let total_width_of_bricks = (RIGHT_WALL - LEFT_WALL) - 2. * GAP_BETWEEN_BRICKS_AND_SIDES;
-    let bottom_edge_of_bricks = paddle_y + GAP_BETWEEN_PADDLE_AND_BRICKS;
-    let total_height_of_bricks = TOP_WALL - bottom_edge_of_bricks - GAP_BETWEEN_BRICKS_AND_CEILING;
+mod game {
+    use bevy::prelude::*;
 
-    assert!(total_width_of_bricks > 0.0);
-    assert!(total_height_of_bricks > 0.0);
+    use super::{despawn_screen, DisplayQuality, GameState, Volume, TEXT_COLOR};
 
-    // Given the space available, compute how many rows and columns of bricks we can fit
-    let n_columns = (total_width_of_bricks / (BRICK_SIZE.x + GAP_BETWEEN_BRICKS)).floor() as usize;
-    let n_rows = (total_height_of_bricks / (BRICK_SIZE.y + GAP_BETWEEN_BRICKS)).floor() as usize;
-    let n_vertical_gaps = n_columns - 1;
+    // This plugin will contain the game. In this case, it's just be a screen that will
+    // display the current settings for 5 seconds before returning to the menu
+    pub fn game_plugin(app: &mut App) {
+        app.add_systems(OnEnter(GameState::Game), game_setup)
+            .add_systems(Update, game.run_if(in_state(GameState::Game)))
+            .add_systems(OnExit(GameState::Game), despawn_screen::<OnGameScreen>);
+    }
 
-    // Because we need to round the number of columns,
-    // the space on the top and sides of the bricks only captures a lower bound, not an exact value
-    let center_of_bricks = (LEFT_WALL + RIGHT_WALL) / 2.0;
-    let left_edge_of_bricks = center_of_bricks
-        // Space taken up by the bricks
-        - (n_columns as f32 / 2.0 * BRICK_SIZE.x)
-        // Space taken up by the gaps
-        - n_vertical_gaps as f32 / 2.0 * GAP_BETWEEN_BRICKS;
+    // Tag component used to tag entities added on the game screen
+    #[derive(Component)]
+    struct OnGameScreen;
 
-    // In Bevy, the `translation` of an entity describes the center point,
-    // not its bottom-left corner
-    let offset_x = left_edge_of_bricks + BRICK_SIZE.x / 2.;
-    let offset_y = bottom_edge_of_bricks + BRICK_SIZE.y / 2.;
+    #[derive(Resource, Deref, DerefMut)]
+    struct GameTimer(Timer);
 
-    for row in 0..n_rows {
-        for column in 0..n_columns {
-            let brick_position = Vec2::new(
-                offset_x + column as f32 * (BRICK_SIZE.x + GAP_BETWEEN_BRICKS),
-                offset_y + row as f32 * (BRICK_SIZE.y + GAP_BETWEEN_BRICKS),
+    fn game_setup(
+        mut commands: Commands,
+        display_quality: Res<DisplayQuality>,
+        volume: Res<Volume>,
+    ) {
+        commands
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        // center children
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    ..default()
+                },
+                OnGameScreen,
+            ))
+            .with_children(|parent| {
+                // First create a `NodeBundle` for centering what we want to display
+                parent
+                    .spawn(NodeBundle {
+                        style: Style {
+                            // This will display its children in a column, from top to bottom
+                            flex_direction: FlexDirection::Column,
+                            // `align_items` will align children on the cross axis. Here the main axis is
+                            // vertical (column), so the cross axis is horizontal. This will center the
+                            // children
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        background_color: Color::BLACK.into(),
+                        ..default()
+                    })
+                    .with_children(|parent| {
+                        // Display two lines of text, the second one with the current settings
+                        parent.spawn(
+                            TextBundle::from_section(
+                                "Will be back to the menu shortly...",
+                                TextStyle {
+                                    font_size: 80.0,
+                                    color: TEXT_COLOR,
+                                    ..default()
+                                },
+                            )
+                            .with_style(Style {
+                                margin: UiRect::all(Val::Px(50.0)),
+                                ..default()
+                            }),
+                        );
+                        parent.spawn(
+                            TextBundle::from_sections([
+                                TextSection::new(
+                                    format!("quality: {:?}", *display_quality),
+                                    TextStyle {
+                                        font_size: 60.0,
+                                        color: Color::BLUE,
+                                        ..default()
+                                    },
+                                ),
+                                TextSection::new(
+                                    " - ",
+                                    TextStyle {
+                                        font_size: 60.0,
+                                        color: TEXT_COLOR,
+                                        ..default()
+                                    },
+                                ),
+                                TextSection::new(
+                                    format!("volume: {:?}", *volume),
+                                    TextStyle {
+                                        font_size: 60.0,
+                                        color: Color::GREEN,
+                                        ..default()
+                                    },
+                                ),
+                            ])
+                            .with_style(Style {
+                                margin: UiRect::all(Val::Px(50.0)),
+                                ..default()
+                            }),
+                        );
+                    });
+            });
+        // Spawn a 5 seconds timer to trigger going back to the menu
+        commands.insert_resource(GameTimer(Timer::from_seconds(5.0, TimerMode::Once)));
+    }
+
+    // Tick the timer, and change state when finished
+    fn game(
+        time: Res<Time>,
+        mut game_state: ResMut<NextState<GameState>>,
+        mut timer: ResMut<GameTimer>,
+    ) {
+        if timer.tick(time.delta()).finished() {
+            game_state.set(GameState::Menu);
+        }
+    }
+}
+
+mod menu {
+    use bevy::{app::AppExit, prelude::*};
+
+    use super::{despawn_screen, DisplayQuality, GameState, Volume, TEXT_COLOR};
+
+    // This plugin manages the menu, with 5 different screens:
+    // - a main menu with "New Game", "Settings", "Quit"
+    // - a settings menu with two submenus and a back button
+    // - two settings screen with a setting that can be set and a back button
+    pub fn menu_plugin(app: &mut App) {
+        app
+            // At start, the menu is not enabled. This will be changed in `menu_setup` when
+            // entering the `GameState::Menu` state.
+            // Current screen in the menu is handled by an independent state from `GameState`
+            .init_state::<MenuState>()
+            .add_systems(OnEnter(GameState::Menu), menu_setup)
+            // Systems to handle the main menu screen
+            .add_systems(OnEnter(MenuState::Main), main_menu_setup)
+            .add_systems(OnExit(MenuState::Main), despawn_screen::<OnMainMenuScreen>)
+            // Systems to handle the settings menu screen
+            .add_systems(OnEnter(MenuState::Settings), settings_menu_setup)
+            .add_systems(
+                OnExit(MenuState::Settings),
+                despawn_screen::<OnSettingsMenuScreen>,
+            )
+            // Systems to handle the display settings screen
+            .add_systems(
+                OnEnter(MenuState::SettingsDisplay),
+                display_settings_menu_setup,
+            )
+            .add_systems(
+                Update,
+                (setting_button::<DisplayQuality>.run_if(in_state(MenuState::SettingsDisplay)),),
+            )
+            .add_systems(
+                OnExit(MenuState::SettingsDisplay),
+                despawn_screen::<OnDisplaySettingsMenuScreen>,
+            )
+            // Systems to handle the sound settings screen
+            .add_systems(OnEnter(MenuState::SettingsSound), sound_settings_menu_setup)
+            .add_systems(
+                Update,
+                setting_button::<Volume>.run_if(in_state(MenuState::SettingsSound)),
+            )
+            .add_systems(
+                OnExit(MenuState::SettingsSound),
+                despawn_screen::<OnSoundSettingsMenuScreen>,
+            )
+            // Common systems to all screens that handles buttons behavior
+            .add_systems(
+                Update,
+                (menu_action, button_system).run_if(in_state(GameState::Menu)),
             );
+    }
 
-            // brick
-            commands.spawn((
-                SpriteBundle {
-                    sprite: Sprite {
-                        color: BRICK_COLOR,
-                        ..default()
-                    },
-                    transform: Transform {
-                        translation: brick_position.extend(0.0),
-                        scale: Vec3::new(BRICK_SIZE.x, BRICK_SIZE.y, 1.0),
+    // State used for the current menu screen
+    #[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
+    enum MenuState {
+        Main,
+        Settings,
+        SettingsDisplay,
+        SettingsSound,
+        #[default]
+        Disabled,
+    }
+
+    // Tag component used to tag entities added on the main menu screen
+    #[derive(Component)]
+    struct OnMainMenuScreen;
+
+    // Tag component used to tag entities added on the settings menu screen
+    #[derive(Component)]
+    struct OnSettingsMenuScreen;
+
+    // Tag component used to tag entities added on the display settings menu screen
+    #[derive(Component)]
+    struct OnDisplaySettingsMenuScreen;
+
+    // Tag component used to tag entities added on the sound settings menu screen
+    #[derive(Component)]
+    struct OnSoundSettingsMenuScreen;
+
+    const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
+    const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
+    const HOVERED_PRESSED_BUTTON: Color = Color::rgb(0.25, 0.65, 0.25);
+    const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
+
+    // Tag component used to mark which setting is currently selected
+    #[derive(Component)]
+    struct SelectedOption;
+
+    // All actions that can be triggered from a button click
+    #[derive(Component)]
+    enum MenuButtonAction {
+        Play,
+        Settings,
+        SettingsDisplay,
+        SettingsSound,
+        BackToMainMenu,
+        BackToSettings,
+        Quit,
+    }
+
+    // This system handles changing all buttons color based on mouse interaction
+    fn button_system(
+        mut interaction_query: Query<
+            (&Interaction, &mut BackgroundColor, Option<&SelectedOption>),
+            (Changed<Interaction>, With<Button>),
+        >,
+    ) {
+        for (interaction, mut color, selected) in &mut interaction_query {
+            *color = match (*interaction, selected) {
+                (Interaction::Pressed, _) | (Interaction::None, Some(_)) => PRESSED_BUTTON.into(),
+                (Interaction::Hovered, Some(_)) => HOVERED_PRESSED_BUTTON.into(),
+                (Interaction::Hovered, None) => HOVERED_BUTTON.into(),
+                (Interaction::None, None) => NORMAL_BUTTON.into(),
+            }
+        }
+    }
+
+    // This system updates the settings when a new value for a setting is selected, and marks
+    // the button as the one currently selected
+    fn setting_button<T: Resource + Component + PartialEq + Copy>(
+        interaction_query: Query<(&Interaction, &T, Entity), (Changed<Interaction>, With<Button>)>,
+        mut selected_query: Query<(Entity, &mut BackgroundColor), With<SelectedOption>>,
+        mut commands: Commands,
+        mut setting: ResMut<T>,
+    ) {
+        for (interaction, button_setting, entity) in &interaction_query {
+            if *interaction == Interaction::Pressed && *setting != *button_setting {
+                let (previous_button, mut previous_color) = selected_query.single_mut();
+                *previous_color = NORMAL_BUTTON.into();
+                commands.entity(previous_button).remove::<SelectedOption>();
+                commands.entity(entity).insert(SelectedOption);
+                *setting = *button_setting;
+            }
+        }
+    }
+
+    fn menu_setup(mut menu_state: ResMut<NextState<MenuState>>) {
+        menu_state.set(MenuState::Main);
+    }
+
+    fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+        // Common style for all buttons on the screen
+        let button_style = Style {
+            width: Val::Px(250.0),
+            height: Val::Px(65.0),
+            margin: UiRect::all(Val::Px(20.0)),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        };
+        let button_icon_style = Style {
+            width: Val::Px(30.0),
+            // This takes the icons out of the flexbox flow, to be positioned exactly
+            position_type: PositionType::Absolute,
+            // The icon will be close to the left border of the button
+            left: Val::Px(10.0),
+            ..default()
+        };
+        let button_text_style = TextStyle {
+            font_size: 40.0,
+            color: TEXT_COLOR,
+            ..default()
+        };
+
+        commands
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
                         ..default()
                     },
                     ..default()
                 },
-                Brick,
-                Collider,
-            ));
+                OnMainMenuScreen,
+            ))
+            .with_children(|parent| {
+                parent
+                    .spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Column,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        background_color: Color::CRIMSON.into(),
+                        ..default()
+                    })
+                    .with_children(|parent| {
+                        // Display the game name
+                        parent.spawn(
+                            TextBundle::from_section(
+                                "Bevy Game Menu UI",
+                                TextStyle {
+                                    font_size: 80.0,
+                                    color: TEXT_COLOR,
+                                    ..default()
+                                },
+                            )
+                            .with_style(Style {
+                                margin: UiRect::all(Val::Px(50.0)),
+                                ..default()
+                            }),
+                        );
+
+                        // Display three buttons for each action available from the main menu:
+                        // - new game
+                        // - settings
+                        // - quit
+                        parent
+                            .spawn((
+                                ButtonBundle {
+                                    style: button_style.clone(),
+                                    background_color: NORMAL_BUTTON.into(),
+                                    ..default()
+                                },
+                                MenuButtonAction::Play,
+                            ))
+                            .with_children(|parent| {
+                                let icon = asset_server.load("textures/Game Icons/right.png");
+                                parent.spawn(ImageBundle {
+                                    style: button_icon_style.clone(),
+                                    image: UiImage::new(icon),
+                                    ..default()
+                                });
+                                parent.spawn(TextBundle::from_section(
+                                    "New Game",
+                                    button_text_style.clone(),
+                                ));
+                            });
+                        parent
+                            .spawn((
+                                ButtonBundle {
+                                    style: button_style.clone(),
+                                    background_color: NORMAL_BUTTON.into(),
+                                    ..default()
+                                },
+                                MenuButtonAction::Settings,
+                            ))
+                            .with_children(|parent| {
+                                let icon = asset_server.load("textures/Game Icons/wrench.png");
+                                parent.spawn(ImageBundle {
+                                    style: button_icon_style.clone(),
+                                    image: UiImage::new(icon),
+                                    ..default()
+                                });
+                                parent.spawn(TextBundle::from_section(
+                                    "Settings",
+                                    button_text_style.clone(),
+                                ));
+                            });
+                        parent
+                            .spawn((
+                                ButtonBundle {
+                                    style: button_style,
+                                    background_color: NORMAL_BUTTON.into(),
+                                    ..default()
+                                },
+                                MenuButtonAction::Quit,
+                            ))
+                            .with_children(|parent| {
+                                let icon = asset_server.load("textures/Game Icons/exitRight.png");
+                                parent.spawn(ImageBundle {
+                                    style: button_icon_style,
+                                    image: UiImage::new(icon),
+                                    ..default()
+                                });
+                                parent.spawn(TextBundle::from_section("Quit", button_text_style));
+                            });
+                    });
+            });
+    }
+
+    fn settings_menu_setup(mut commands: Commands) {
+        let button_style = Style {
+            width: Val::Px(200.0),
+            height: Val::Px(65.0),
+            margin: UiRect::all(Val::Px(20.0)),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        };
+
+        let button_text_style = TextStyle {
+            font_size: 40.0,
+            color: TEXT_COLOR,
+            ..default()
+        };
+
+        commands
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    ..default()
+                },
+                OnSettingsMenuScreen,
+            ))
+            .with_children(|parent| {
+                parent
+                    .spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Column,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        background_color: Color::CRIMSON.into(),
+                        ..default()
+                    })
+                    .with_children(|parent| {
+                        for (action, text) in [
+                            (MenuButtonAction::SettingsDisplay, "Display"),
+                            (MenuButtonAction::SettingsSound, "Sound"),
+                            (MenuButtonAction::BackToMainMenu, "Back"),
+                        ] {
+                            parent
+                                .spawn((
+                                    ButtonBundle {
+                                        style: button_style.clone(),
+                                        background_color: NORMAL_BUTTON.into(),
+                                        ..default()
+                                    },
+                                    action,
+                                ))
+                                .with_children(|parent| {
+                                    parent.spawn(TextBundle::from_section(
+                                        text,
+                                        button_text_style.clone(),
+                                    ));
+                                });
+                        }
+                    });
+            });
+    }
+
+    fn display_settings_menu_setup(mut commands: Commands, display_quality: Res<DisplayQuality>) {
+        let button_style = Style {
+            width: Val::Px(200.0),
+            height: Val::Px(65.0),
+            margin: UiRect::all(Val::Px(20.0)),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        };
+        let button_text_style = TextStyle {
+            font_size: 40.0,
+            color: TEXT_COLOR,
+            ..default()
+        };
+
+        commands
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    ..default()
+                },
+                OnDisplaySettingsMenuScreen,
+            ))
+            .with_children(|parent| {
+                parent
+                    .spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Column,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        background_color: Color::CRIMSON.into(),
+                        ..default()
+                    })
+                    .with_children(|parent| {
+                        // Create a new `NodeBundle`, this time not setting its `flex_direction`. It will
+                        // use the default value, `FlexDirection::Row`, from left to right.
+                        parent
+                            .spawn(NodeBundle {
+                                style: Style {
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                background_color: Color::CRIMSON.into(),
+                                ..default()
+                            })
+                            .with_children(|parent| {
+                                // Display a label for the current setting
+                                parent.spawn(TextBundle::from_section(
+                                    "Display Quality",
+                                    button_text_style.clone(),
+                                ));
+                                // Display a button for each possible value
+                                for quality_setting in [
+                                    DisplayQuality::Low,
+                                    DisplayQuality::Medium,
+                                    DisplayQuality::High,
+                                ] {
+                                    let mut entity = parent.spawn((
+                                        ButtonBundle {
+                                            style: Style {
+                                                width: Val::Px(150.0),
+                                                height: Val::Px(65.0),
+                                                ..button_style.clone()
+                                            },
+                                            background_color: NORMAL_BUTTON.into(),
+                                            ..default()
+                                        },
+                                        quality_setting,
+                                    ));
+                                    entity.with_children(|parent| {
+                                        parent.spawn(TextBundle::from_section(
+                                            format!("{quality_setting:?}"),
+                                            button_text_style.clone(),
+                                        ));
+                                    });
+                                    if *display_quality == quality_setting {
+                                        entity.insert(SelectedOption);
+                                    }
+                                }
+                            });
+                        // Display the back button to return to the settings screen
+                        parent
+                            .spawn((
+                                ButtonBundle {
+                                    style: button_style,
+                                    background_color: NORMAL_BUTTON.into(),
+                                    ..default()
+                                },
+                                MenuButtonAction::BackToSettings,
+                            ))
+                            .with_children(|parent| {
+                                parent.spawn(TextBundle::from_section("Back", button_text_style));
+                            });
+                    });
+            });
+    }
+
+    fn sound_settings_menu_setup(mut commands: Commands, volume: Res<Volume>) {
+        let button_style = Style {
+            width: Val::Px(200.0),
+            height: Val::Px(65.0),
+            margin: UiRect::all(Val::Px(20.0)),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        };
+        let button_text_style = TextStyle {
+            font_size: 40.0,
+            color: TEXT_COLOR,
+            ..default()
+        };
+
+        commands
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    ..default()
+                },
+                OnSoundSettingsMenuScreen,
+            ))
+            .with_children(|parent| {
+                parent
+                    .spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Column,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        background_color: Color::CRIMSON.into(),
+                        ..default()
+                    })
+                    .with_children(|parent| {
+                        parent
+                            .spawn(NodeBundle {
+                                style: Style {
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                background_color: Color::CRIMSON.into(),
+                                ..default()
+                            })
+                            .with_children(|parent| {
+                                parent.spawn(TextBundle::from_section(
+                                    "Volume",
+                                    button_text_style.clone(),
+                                ));
+                                for volume_setting in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] {
+                                    let mut entity = parent.spawn((
+                                        ButtonBundle {
+                                            style: Style {
+                                                width: Val::Px(30.0),
+                                                height: Val::Px(65.0),
+                                                ..button_style.clone()
+                                            },
+                                            background_color: NORMAL_BUTTON.into(),
+                                            ..default()
+                                        },
+                                        Volume(volume_setting),
+                                    ));
+                                    if *volume == Volume(volume_setting) {
+                                        entity.insert(SelectedOption);
+                                    }
+                                }
+                            });
+                        parent
+                            .spawn((
+                                ButtonBundle {
+                                    style: button_style,
+                                    background_color: NORMAL_BUTTON.into(),
+                                    ..default()
+                                },
+                                MenuButtonAction::BackToSettings,
+                            ))
+                            .with_children(|parent| {
+                                parent.spawn(TextBundle::from_section("Back", button_text_style));
+                            });
+                    });
+            });
+    }
+
+    fn menu_action(
+        interaction_query: Query<
+            (&Interaction, &MenuButtonAction),
+            (Changed<Interaction>, With<Button>),
+        >,
+        mut app_exit_events: EventWriter<AppExit>,
+        mut menu_state: ResMut<NextState<MenuState>>,
+        mut game_state: ResMut<NextState<GameState>>,
+    ) {
+        for (interaction, menu_button_action) in &interaction_query {
+            if *interaction == Interaction::Pressed {
+                match menu_button_action {
+                    MenuButtonAction::Quit => {
+                        app_exit_events.send(AppExit);
+                    }
+                    MenuButtonAction::Play => {
+                        game_state.set(GameState::Game);
+                        menu_state.set(MenuState::Disabled);
+                    }
+                    MenuButtonAction::Settings => menu_state.set(MenuState::Settings),
+                    MenuButtonAction::SettingsDisplay => {
+                        menu_state.set(MenuState::SettingsDisplay);
+                    }
+                    MenuButtonAction::SettingsSound => {
+                        menu_state.set(MenuState::SettingsSound);
+                    }
+                    MenuButtonAction::BackToMainMenu => menu_state.set(MenuState::Main),
+                    MenuButtonAction::BackToSettings => {
+                        menu_state.set(MenuState::Settings);
+                    }
+                }
+            }
         }
     }
 }
 
-fn move_paddle(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut Transform, With<Paddle>>,
-    time: Res<Time>,
-) {
-    let mut paddle_transform = query.single_mut();
-    let mut direction = 0.0;
-
-    if keyboard_input.pressed(KeyCode::ArrowLeft) {
-        direction -= 1.0;
+// Generic system that takes a component as a parameter, and will despawn all entities with that component
+fn despawn_screen<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: Commands) {
+    for entity in &to_despawn {
+        commands.entity(entity).despawn_recursive();
     }
-
-    if keyboard_input.pressed(KeyCode::ArrowRight) {
-        direction += 1.0;
-    }
-
-    // Calculate the new horizontal paddle position based on player input
-    let new_paddle_position =
-        paddle_transform.translation.x + direction * PADDLE_SPEED * time.delta_seconds();
-
-    // Update the paddle position,
-    // making sure it doesn't cause the paddle to leave the arena
-    let left_bound = LEFT_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.x / 2.0 + PADDLE_PADDING;
-    let right_bound = RIGHT_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.x / 2.0 - PADDLE_PADDING;
-
-    paddle_transform.translation.x = new_paddle_position.clamp(left_bound, right_bound);
-}
-
-fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, time: Res<Time>) {
-    for (mut transform, velocity) in &mut query {
-        transform.translation.x += velocity.x * time.delta_seconds();
-        transform.translation.y += velocity.y * time.delta_seconds();
-    }
-}
-
-fn update_scoreboard(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text, With<ScoreboardUi>>) {
-    let mut text = query.single_mut();
-    text.sections[1].value = scoreboard.score.to_string();
-}
-
-fn check_for_collisions(
-    mut commands: Commands,
-    mut scoreboard: ResMut<Scoreboard>,
-    mut ball_query: Query<(&mut Velocity, &Transform), With<Ball>>,
-    collider_query: Query<(Entity, &Transform, Option<&Brick>), With<Collider>>,
-    mut collision_events: EventWriter<CollisionEvent>,
-) {
-    let (mut ball_velocity, ball_transform) = ball_query.single_mut();
-
-    // check collision with walls
-    for (collider_entity, transform, maybe_brick) in &collider_query {
-        let collision = collide_with_side(
-            BoundingCircle::new(ball_transform.translation.truncate(), BALL_DIAMETER / 2.),
-            Aabb2d::new(
-                transform.translation.truncate(),
-                transform.scale.truncate() / 2.,
-            ),
-        );
-
-        if let Some(collision) = collision {
-            // Sends a collision event so that other systems can react to the collision
-            collision_events.send_default();
-
-            // Bricks should be despawned and increment the scoreboard on collision
-            if maybe_brick.is_some() {
-                scoreboard.score += 1;
-                commands.entity(collider_entity).despawn();
-            }
-
-            // reflect the ball when it collides
-            let mut reflect_x = false;
-            let mut reflect_y = false;
-
-            // only reflect if the ball's velocity is going in the opposite direction of the
-            // collision
-            match collision {
-                Collision::Left => reflect_x = ball_velocity.x > 0.0,
-                Collision::Right => reflect_x = ball_velocity.x < 0.0,
-                Collision::Top => reflect_y = ball_velocity.y < 0.0,
-                Collision::Bottom => reflect_y = ball_velocity.y > 0.0,
-            }
-
-            // reflect velocity on the x-axis if we hit something on the x-axis
-            if reflect_x {
-                ball_velocity.x = -ball_velocity.x;
-            }
-
-            // reflect velocity on the y-axis if we hit something on the y-axis
-            if reflect_y {
-                ball_velocity.y = -ball_velocity.y;
-            }
-        }
-    }
-}
-
-fn play_collision_sound(
-    mut commands: Commands,
-    mut collision_events: EventReader<CollisionEvent>,
-    sound: Res<CollisionSound>,
-) {
-    // Play a sound once per frame if a collision occurred.
-    if !collision_events.is_empty() {
-        // This prevents events staying active on the next frame.
-        collision_events.clear();
-        commands.spawn(AudioBundle {
-            source: sound.0.clone(),
-            // auto-despawn the entity when playback finishes
-            settings: PlaybackSettings::DESPAWN,
-        });
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-enum Collision {
-    Left,
-    Right,
-    Top,
-    Bottom,
-}
-
-// Returns `Some` if `ball` collides with `wall`. The returned `Collision` is the
-// side of `wall` that `ball` hit.
-fn collide_with_side(ball: BoundingCircle, wall: Aabb2d) -> Option<Collision> {
-    if !ball.intersects(&wall) {
-        return None;
-    }
-
-    let closest = wall.closest_point(ball.center());
-    let offset = ball.center() - closest;
-    let side = if offset.x.abs() > offset.y.abs() {
-        if offset.x < 0. {
-            Collision::Left
-        } else {
-            Collision::Right
-        }
-    } else if offset.y > 0. {
-        Collision::Top
-    } else {
-        Collision::Bottom
-    };
-
-    Some(side)
 }
