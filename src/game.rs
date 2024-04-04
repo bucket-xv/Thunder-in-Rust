@@ -70,9 +70,12 @@ pub fn game_plugin(app: &mut App) {
         )
         .add_systems(
             Update,
-            (update_scoreboard, bevy::window::close_on_esc).run_if(in_state(GameState::Game)),
+            (update_scoreboard, back_on_esc).run_if(in_state(GameState::Game)),
         )
-        .add_systems(OnExit(GameState::Game), despawn_screen::<OnGameScreen>);
+        .add_systems(
+            OnExit(GameState::Game),
+            (despawn_screen::<OnGameScreen>, restore_background),
+        );
 }
 
 // Tag component used to tag entities added on the game screen
@@ -116,6 +119,7 @@ fn game_setup(
         },
         Paddle,
         Collider,
+        OnGameScreen,
     ));
 
     // Ball
@@ -129,6 +133,7 @@ fn game_setup(
         },
         Ball,
         Velocity(INITIAL_BALL_DIRECTION.normalize() * BALL_SPEED),
+        OnGameScreen,
     ));
 
     // Scoreboard
@@ -155,13 +160,14 @@ fn game_setup(
             left: SCOREBOARD_TEXT_PADDING,
             ..default()
         }),
+        OnGameScreen,
     ));
 
     // Walls
-    commands.spawn(WallBundle::new(WallLocation::Left));
-    commands.spawn(WallBundle::new(WallLocation::Right));
-    commands.spawn(WallBundle::new(WallLocation::Bottom));
-    commands.spawn(WallBundle::new(WallLocation::Top));
+    commands.spawn((WallBundle::new(WallLocation::Left), OnGameScreen));
+    commands.spawn((WallBundle::new(WallLocation::Right), OnGameScreen));
+    commands.spawn((WallBundle::new(WallLocation::Bottom), OnGameScreen));
+    commands.spawn((WallBundle::new(WallLocation::Top), OnGameScreen));
 
     // Bricks
     let total_width_of_bricks = (RIGHT_WALL - LEFT_WALL) - 2. * GAP_BETWEEN_BRICKS_AND_SIDES;
@@ -213,6 +219,7 @@ fn game_setup(
                 },
                 Brick,
                 Collider,
+                OnGameScreen,
             ));
         }
     }
@@ -358,6 +365,27 @@ fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, time: Res<Time>
 fn update_scoreboard(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text, With<ScoreboardUi>>) {
     let mut text = query.single_mut();
     text.sections[1].value = scoreboard.score.to_string();
+}
+
+fn back_on_esc(
+    focused_windows: Query<(Entity, &Window)>,
+    input: Res<ButtonInput<KeyCode>>,
+    mut game_state: ResMut<NextState<GameState>>,
+) {
+    for (_, focus) in focused_windows.iter() {
+        if !focus.focused {
+            continue;
+        }
+
+        if input.just_pressed(KeyCode::Escape) {
+            game_state.set(GameState::Menu);
+        }
+    }
+}
+
+fn restore_background(mut commands: Commands) {
+    commands.remove_resource::<ClearColor>();
+    commands.insert_resource(ClearColor::default());
 }
 
 fn check_for_collisions(
