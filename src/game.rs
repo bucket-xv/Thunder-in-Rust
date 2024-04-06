@@ -11,11 +11,12 @@ use super::{despawn_screen, GameState};
 
 // These constants are defined in `Transform` units.
 // Using the default 2D camera they correspond 1:1 with screen pixels.
-const PADDLE_SIZE: Vec3 = Vec3::new(120.0, 20.0, 0.0);
-const GAP_BETWEEN_PADDLE_AND_FLOOR: f32 = 60.0;
-const PADDLE_SPEED: f32 = 500.0;
-// How close can the paddle get to the wall
-const PADDLE_PADDING: f32 = 10.0;
+const PLANE_SIZE: Vec3 = Vec3::new(120.0, 20.0, 0.0);
+const GAP_BETWEEN_PLANE_AND_FLOOR: f32 = 60.0;
+const PLANE_SPEED: f32 = 500.0;
+const BULLET_SPEED: f32 = 800.0;
+// How close can the plane get to the wall
+const PLANE_PADDING: f32 = 10.0;
 
 // We set the z-value of the ball to 1 so it renders on top in the case of overlapping sprites.
 const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 1.0);
@@ -33,7 +34,7 @@ const TOP_WALL: f32 = 300.;
 
 const BRICK_SIZE: Vec2 = Vec2::new(100., 30.);
 // These values are exact
-const GAP_BETWEEN_PADDLE_AND_BRICKS: f32 = 270.0;
+const GAP_BETWEEN_PLANE_AND_BRICKS: f32 = 270.0;
 const GAP_BETWEEN_BRICKS: f32 = 5.0;
 // These values are lower bounds, as the number of bricks is computed
 const GAP_BETWEEN_BRICKS_AND_CEILING: f32 = 20.0;
@@ -43,7 +44,8 @@ const SCOREBOARD_FONT_SIZE: f32 = 40.0;
 const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
 
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
-const PADDLE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
+const PLANE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
+const BULLET_COLOR: Color = Color::rgb(0.7, 0.3, 0.3);
 const BALL_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 const BRICK_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
@@ -59,8 +61,10 @@ pub fn game_plugin(app: &mut App) {
         .add_systems(
             FixedUpdate,
             (
+                shoot_bullets,
                 apply_velocity,
-                move_paddle,
+                move_plane,
+                check_for_out_of_bounds,
                 check_for_collisions,
                 play_collision_sound,
             )
@@ -82,8 +86,11 @@ pub fn game_plugin(app: &mut App) {
 #[derive(Component)]
 struct OnGameScreen;
 
+#[derive(Component)]
+struct Player;
+
 #[derive(Resource, Deref, DerefMut)]
-struct GameTimer(Timer);
+struct ShootTimer(Timer);
 
 // Add the game's entities to our world
 fn game_setup(
@@ -94,6 +101,7 @@ fn game_setup(
 ) {
     commands.insert_resource(Scoreboard { score: 0 });
     commands.insert_resource(ClearColor(BACKGROUND_COLOR));
+    commands.insert_resource(ShootTimer(Timer::from_seconds(0.2, TimerMode::Repeating)));
 
     // commands.spawn(Camera2dBundle::default());
 
@@ -101,23 +109,24 @@ fn game_setup(
     let ball_collision_sound = asset_server.load("sounds/breakout_collision.ogg");
     commands.insert_resource(CollisionSound(ball_collision_sound));
 
-    // Paddle
-    let paddle_y = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
+    // Plane
+    let plane_y = BOTTOM_WALL + GAP_BETWEEN_PLANE_AND_FLOOR;
 
     commands.spawn((
         SpriteBundle {
             transform: Transform {
-                translation: Vec3::new(0.0, paddle_y, 0.0),
-                scale: PADDLE_SIZE,
+                translation: Vec3::new(0.0, plane_y, 0.0),
+                scale: PLANE_SIZE,
                 ..default()
             },
             sprite: Sprite {
-                color: PADDLE_COLOR,
+                color: PLANE_COLOR,
                 ..default()
             },
             ..default()
         },
-        Paddle,
+        Plane,
+        Player,
         Collider,
         OnGameScreen,
     ));
@@ -171,7 +180,7 @@ fn game_setup(
 
     // Bricks
     let total_width_of_bricks = (RIGHT_WALL - LEFT_WALL) - 2. * GAP_BETWEEN_BRICKS_AND_SIDES;
-    let bottom_edge_of_bricks = paddle_y + GAP_BETWEEN_PADDLE_AND_BRICKS;
+    let bottom_edge_of_bricks = plane_y + GAP_BETWEEN_PLANE_AND_BRICKS;
     let total_height_of_bricks = TOP_WALL - bottom_edge_of_bricks - GAP_BETWEEN_BRICKS_AND_CEILING;
 
     assert!(total_width_of_bricks > 0.0);
@@ -226,10 +235,13 @@ fn game_setup(
 }
 
 #[derive(Component)]
-struct Paddle;
+struct Plane;
 
 #[derive(Component)]
 struct Ball;
+
+#[derive(Component)]
+struct Bullet;
 
 #[derive(Component, Deref, DerefMut)]
 struct Velocity(Vec2);
@@ -327,12 +339,12 @@ struct Scoreboard {
 #[derive(Component)]
 struct ScoreboardUi;
 
-fn move_paddle(
+fn move_plane(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut Transform, With<Paddle>>,
+    mut query: Query<&mut Transform, With<Plane>>,
     time: Res<Time>,
 ) {
-    let mut paddle_transform = query.single_mut();
+    let mut plane_transform = query.single_mut();
     let mut direction = Vec3::new(0.0, 0.0, 0.0);
 
     if keyboard_input.pressed(KeyCode::ArrowLeft) {
@@ -350,19 +362,19 @@ fn move_paddle(
     if keyboard_input.pressed(KeyCode::ArrowUp) {
         direction.y += 1.0;
     }
-    assert_eq!(paddle_transform.translation.z, 0.0);
-    // Calculate the new horizontal paddle position based on player input
-    let new_paddle_position =
-        paddle_transform.translation + direction * PADDLE_SPEED * time.delta_seconds();
+    assert_eq!(plane_transform.translation.z, 0.0);
+    // Calculate the new horizontal plane position based on player input
+    let new_plane_position =
+        plane_transform.translation + direction * PLANE_SPEED * time.delta_seconds();
 
-    // Update the paddle position,
-    // making sure it doesn't cause the paddle to leave the arena
-    let left_bound = LEFT_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.x / 2.0 + PADDLE_PADDING;
-    let right_bound = RIGHT_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.x / 2.0 - PADDLE_PADDING;
-    let down_bound = BOTTOM_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.x / 2.0 + PADDLE_PADDING;
-    let up_bound = TOP_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.x / 2.0 - PADDLE_PADDING;
+    // Update the plane position,
+    // making sure it doesn't cause the plane to leave the arena
+    let left_bound = LEFT_WALL + WALL_THICKNESS / 2.0 + PLANE_SIZE.x / 2.0 + PLANE_PADDING;
+    let right_bound = RIGHT_WALL - WALL_THICKNESS / 2.0 - PLANE_SIZE.x / 2.0 - PLANE_PADDING;
+    let down_bound = BOTTOM_WALL + WALL_THICKNESS / 2.0 + PLANE_SIZE.x / 2.0 + PLANE_PADDING;
+    let up_bound = TOP_WALL - WALL_THICKNESS / 2.0 - PLANE_SIZE.x / 2.0 - PLANE_PADDING;
 
-    paddle_transform.translation = new_paddle_position.clamp(
+    plane_transform.translation = new_plane_position.clamp(
         Vec3::new(left_bound, down_bound, 0.0),
         Vec3::new(right_bound, up_bound, 0.0),
     );
@@ -378,6 +390,44 @@ fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, time: Res<Time>
 fn update_scoreboard(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text, With<ScoreboardUi>>) {
     let mut text = query.single_mut();
     text.sections[1].value = scoreboard.score.to_string();
+}
+
+fn shoot_bullets(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut timer: ResMut<ShootTimer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    query: Query<&Transform, With<Player>>,
+) {
+    if timer.tick(time.delta()).just_finished() {
+        let plane_transform = query.single();
+        let bullet_position = plane_transform.translation + Vec3::new(0.0, 50.0, 0.0);
+
+        commands.spawn((
+            MaterialMesh2dBundle {
+                mesh: meshes.add(Circle::default()).into(),
+                material: materials.add(BULLET_COLOR).into(),
+                transform: Transform::from_translation(bullet_position)
+                    .with_scale(Vec2::splat(10.0).extend(1.)),
+                ..default()
+            },
+            Velocity(Vec2::new(0.0, BULLET_SPEED)),
+            Bullet,
+            OnGameScreen,
+        ));
+    }
+}
+
+fn check_for_out_of_bounds(
+    mut commands: Commands,
+    bullet_query: Query<(Entity, &Transform), With<Bullet>>,
+) {
+    for (entity, transform) in &mut bullet_query.iter() {
+        if transform.translation.y > TOP_WALL {
+            commands.entity(entity).despawn();
+        }
+    }
 }
 
 fn back_on_esc(
