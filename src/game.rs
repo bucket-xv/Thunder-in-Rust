@@ -1,7 +1,7 @@
 //! A simplified implementation of the classic game "Breakout".
 
 use bevy::{
-    // math::bounding::{Aabb2d, BoundingCircle, BoundingVolume, IntersectsVolume},
+    math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume},
     prelude::*,
     sprite::MaterialMesh2dBundle,
 };
@@ -13,7 +13,7 @@ use super::{despawn_screen, GameState};
 // Using the default 2D camera they correspond 1:1 with screen pixels.
 const PLANE_SIZE: Vec3 = Vec3::new(120.0, 20.0, 0.0);
 const GAP_BETWEEN_PLANE_AND_FLOOR: f32 = 60.0;
-const PLAYER_PLANE_SPEED: f32 = 500.0;
+const PLAYER_PLANE_SPEED: f32 = 300.0;
 
 // How close can the plane get to the wall
 const PLANE_PADDING: f32 = 10.0;
@@ -22,7 +22,7 @@ const PLANE_PADDING: f32 = 10.0;
 const BULLET_STARTING_RELATIVE_POSITION: Vec3 = Vec3::new(0.0, 50.0, 0.0);
 const BULLET_SHOOTING_INTERVAL: f32 = 0.2;
 const BULLET_DIAMETER: f32 = 20.;
-const BULLET_SPEED: f32 = 800.0;
+const BULLET_SPEED: f32 = 600.0;
 
 const WALL_THICKNESS: f32 = 10.0;
 // x coordinates
@@ -54,7 +54,7 @@ const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 // This plugin will contain the game. It will focus on the state `GameState::Game`
 pub fn game_plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::Game), game_setup)
-        .add_event::<CollisionEvent>()
+        .add_event::<HittingEvent>()
         // Add our gameplay simulation systems to the fixed timestep schedule
         // which runs at 64 Hz by default
         .add_systems(
@@ -63,9 +63,8 @@ pub fn game_plugin(app: &mut App) {
                 shoot_bullets,
                 apply_velocity,
                 move_player_plane,
-                check_for_out_of_bounds,
-                // check_for_collisions,
-                // play_collision_sound,
+                check_for_hitting,
+                play_hitting_sound,
             )
                 // `chain`ing systems together runs them in order
                 .chain()
@@ -108,7 +107,7 @@ fn game_setup(
     // commands.spawn(Camera2dBundle::default());
 
     // Sound
-    let hitting_sound = asset_server.load("sounds/breakout_collision.ogg");
+    let hitting_sound = asset_server.load("sounds/bullet_hitting.ogg");
     commands.insert_resource(HittingSound(hitting_sound));
 
     // Player Plane
@@ -129,7 +128,7 @@ fn game_setup(
         },
         Plane,
         Player,
-        Collider,
+        BulletTarget,
         OnGameScreen,
     ));
 
@@ -229,7 +228,7 @@ fn game_setup(
                     ..default()
                 },
                 Brick,
-                Collider,
+                BulletTarget,
                 OnGameScreen,
             ));
         }
@@ -240,20 +239,20 @@ fn game_setup(
 struct Plane;
 
 #[derive(Component)]
-struct Ball;
-
-#[derive(Component)]
 struct Bullet;
+
+// Bullet will despawn when hitting the entity with the BulletTarget component
+#[derive(Component)]
+struct BulletTarget;
 
 #[derive(Component, Deref, DerefMut)]
 struct Velocity(Vec2);
 
-#[derive(Component)]
-struct Collider;
-
-#[derive(Event, Default)]
-struct CollisionEvent;
-
+#[derive(Event)]
+enum HittingEvent {
+    HitWall,
+    HitBrick,
+}
 #[derive(Component)]
 struct Brick;
 
@@ -266,7 +265,7 @@ struct WallBundle {
     // You can nest bundles inside of other bundles like this
     // Allowing you to compose their functionality
     sprite_bundle: SpriteBundle,
-    collider: Collider,
+    collider: BulletTarget,
 }
 
 /// Which side of the arena is this wall located on?
@@ -327,7 +326,7 @@ impl WallBundle {
                 },
                 ..default()
             },
-            collider: Collider,
+            collider: BulletTarget,
         }
     }
 }
@@ -421,17 +420,6 @@ fn shoot_bullets(
     }
 }
 
-fn check_for_out_of_bounds(
-    mut commands: Commands,
-    bullet_query: Query<(Entity, &Transform), With<Bullet>>,
-) {
-    for (entity, transform) in &mut bullet_query.iter() {
-        if transform.translation.y > TOP_WALL {
-            commands.entity(entity).despawn();
-        }
-    }
-}
-
 fn back_on_esc(
     focused_windows: Query<(Entity, &Window)>,
     input: Res<ButtonInput<KeyCode>>,
@@ -452,77 +440,69 @@ fn restore_background(mut commands: Commands) {
     commands.insert_resource(ClearColor::default());
 }
 
-// fn check_for_collisions(
-//     mut commands: Commands,
-//     mut scoreboard: ResMut<Scoreboard>,
-//     mut bullet_query: Query<(&mut Velocity, &Transform), With<Ball>>,
-//     collider_query: Query<(Entity, &Transform, Option<&Brick>), With<Collider>>,
-//     mut collision_events: EventWriter<CollisionEvent>,
-// ) {
-//     let (mut bullet_velocity, bullet_transform) = bullet_query.single_mut();
+fn check_for_hitting(
+    mut commands: Commands,
+    mut scoreboard: ResMut<Scoreboard>,
+    bullet_query: Query<(Entity, &Transform), With<Bullet>>,
+    bullet_target_query: Query<(Entity, &Transform, Option<&Brick>), With<BulletTarget>>,
+    mut hitting_events: EventWriter<HittingEvent>,
+) {
+    for (bullet_entity, bullet_transform) in bullet_query.iter() {
+        let mut despawn_bullet = false;
+        for (target_entity, transform, maybe_brick) in bullet_target_query.iter() {
+            let bullet_shape = BoundingCircle::new(
+                bullet_transform.translation.truncate(),
+                BULLET_DIAMETER / 2.,
+            );
+            let bullet_target_shape = Aabb2d::new(
+                transform.translation.truncate(),
+                transform.scale.truncate() / 2.,
+            );
 
-//     // check collision with walls
-//     for (collider_entity, transform, maybe_brick) in &collider_query {
-//         let collision = collide_with_side(
-//             BoundingCircle::new(bullet_transform.translation.truncate(), BALL_DIAMETER / 2.),
-//             Aabb2d::new(
-//                 transform.translation.truncate(),
-//                 transform.scale.truncate() / 2.,
-//             ),
-//         );
+            if bullet_shape.intersects(&bullet_target_shape) {
+                // Sends a hitting event so that other systems can react to the hitting
+                despawn_bullet = true;
 
-//         if let Some(collision) = collision {
-//             // Sends a collision event so that other systems can react to the collision
-//             collision_events.send_default();
+                // Bricks should be despawned and increment the scoreboard on hitting
+                if maybe_brick.is_some() {
+                    scoreboard.score += 1;
+                    commands.entity(target_entity).despawn();
+                    hitting_events.send(HittingEvent::HitBrick);
+                }
+                // Walls should not be despawned
+                else {
+                    hitting_events.send(HittingEvent::HitWall);
+                }
+            }
+        }
+        if despawn_bullet {
+            commands.entity(bullet_entity).despawn();
+        }
+    }
+}
 
-//             // Bricks should be despawned and increment the scoreboard on collision
-//             if maybe_brick.is_some() {
-//                 scoreboard.score += 1;
-//                 commands.entity(collider_entity).despawn();
-//             }
-
-//             // reflect the bullet when it collides
-//             let mut reflect_x = false;
-//             let mut reflect_y = false;
-
-//             // only reflect if the bullet's velocity is going in the opposite direction of the
-//             // collision
-//             match collision {
-//                 Collision::Left => reflect_x = bullet_velocity.x > 0.0,
-//                 Collision::Right => reflect_x = bullet_velocity.x < 0.0,
-//                 Collision::Top => reflect_y = bullet_velocity.y < 0.0,
-//                 Collision::Bottom => reflect_y = bullet_velocity.y > 0.0,
-//             }
-
-//             // reflect velocity on the x-axis if we hit something on the x-axis
-//             if reflect_x {
-//                 bullet_velocity.x = -bullet_velocity.x;
-//             }
-
-//             // reflect velocity on the y-axis if we hit something on the y-axis
-//             if reflect_y {
-//                 bullet_velocity.y = -bullet_velocity.y;
-//             }
-//         }
-//     }
-// }
-
-// fn play_collision_sound(
-//     mut commands: Commands,
-//     mut collision_events: EventReader<CollisionEvent>,
-//     sound: Res<HittingSound>,
-// ) {
-//     // Play a sound once per frame if a collision occurred.
-//     if !collision_events.is_empty() {
-//         // This prevents events staying active on the next frame.
-//         collision_events.clear();
-//         commands.spawn(AudioBundle {
-//             source: sound.0.clone(),
-//             // auto-despawn the entity when playback finishes
-//             settings: PlaybackSettings::DESPAWN,
-//         });
-//     }
-// }
+fn play_hitting_sound(
+    mut commands: Commands,
+    mut hitting_events: EventReader<HittingEvent>,
+    sound: Res<HittingSound>,
+) {
+    // Play a sound once per frame if a hitting occurred.
+    for event in hitting_events.read() {
+        match event {
+            HittingEvent::HitBrick => {
+                commands.spawn(AudioBundle {
+                    source: sound.0.clone(),
+                    // auto-despawn the entity when playback finishes
+                    settings: PlaybackSettings::DESPAWN,
+                });
+                break;
+            }
+            HittingEvent::HitWall => {}
+        }
+    }
+    // This prevents events staying active on the next frame.
+    hitting_events.clear();
+}
 
 // #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 // enum Collision {
