@@ -1,4 +1,5 @@
-
+//! This is the page that appears when the game is first launched.
+//! It will display the Bevy logo for 1 second before transitioning to the main menu.
 use bevy::prelude::*;
 
 use super::{despawn_screen, GameState};
