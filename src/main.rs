@@ -1,10 +1,8 @@
-//! This example will display a simple menu using Bevy UI where you can start a new game,
-//! change some settings or quit. There is no actual game, it will just display the current
-//! settings for 5 seconds before going back to the menu.
+//! This is the main file that controls the general settings of the game.
 
-mod splash;
 mod game;
 mod menu;
+mod splash;
 
 use bevy::prelude::*;
 
@@ -37,6 +35,11 @@ fn main() {
         // Insert as resource the initial value for the settings resources
         .insert_resource(DisplayQuality::Medium)
         .insert_resource(Volume(7))
+        // .insert_resource(ResolutionSettings {
+        //     large: Vec2::new(1920.0, 1080.0),
+        //     medium: Vec2::new(800.0, 600.0),
+        //     small: Vec2::new(640.0, 360.0),
+        // })
         // Declare the game state, whose starting value is determined by the `Default` trait
         .init_state::<GameState>()
         .add_systems(Startup, setup)
@@ -45,8 +48,23 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands) {
+// /// Stores the various window-resolutions we can select between.
+// #[derive(Resource)]
+// struct ResolutionSettings {
+//     large: Vec2,
+//     medium: Vec2,
+//     small: Vec2,
+// }
+
+fn setup(
+    mut commands: Commands,
+    // mut windows: Query<&mut Window>,
+    // resolution: Res<ResolutionSettings>,
+) {
     commands.spawn(Camera2dBundle::default());
+    // let mut window = windows.single_mut();
+    // let res = resolution.medium;
+    // window.resolution.set(res.x, res.y);
 }
 
 // Generic system that takes a component as a parameter, and will despawn all entities with that component

@@ -1,27 +1,31 @@
-//! A simplified implementation of the classic game "Breakout".
+//! This is the main game page of Thunder.
 
 use bevy::{
-    math::bounding::{Aabb2d, BoundingCircle, BoundingVolume, IntersectsVolume},
+    math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume},
     prelude::*,
     sprite::MaterialMesh2dBundle,
 };
 
 use super::{despawn_screen, GameState};
+use rand::Rng;
 //use super::{DisplayQuality, Volume};
 
 // These constants are defined in `Transform` units.
 // Using the default 2D camera they correspond 1:1 with screen pixels.
-const PADDLE_SIZE: Vec3 = Vec3::new(120.0, 20.0, 0.0);
-const GAP_BETWEEN_PADDLE_AND_FLOOR: f32 = 60.0;
-const PADDLE_SPEED: f32 = 500.0;
-// How close can the paddle get to the wall
-const PADDLE_PADDING: f32 = 10.0;
+const PLANE_SIZE: Vec3 = Vec3::new(30.0, 30.0, 0.0);
+const GAP_BETWEEN_PLANE_AND_WALL: f32 = 60.0;
+const PLAYER_PLANE_SPEED: f32 = 300.0;
 
-// We set the z-value of the ball to 1 so it renders on top in the case of overlapping sprites.
-const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 1.0);
-const BALL_DIAMETER: f32 = 30.;
-const BALL_SPEED: f32 = 400.0;
-const INITIAL_BALL_DIRECTION: Vec2 = Vec2::new(0.5, -0.5);
+// How close can the plane get to the wall
+const PLANE_PADDING: f32 = 10.0;
+
+// We set the z-value of the bullet to 1 so it renders on top in the case of overlapping sprites.
+const BULLET_STARTING_RELATIVE_POSITION: Vec3 = Vec3::new(0.0, 50.0, 0.0);
+const BULLET_SHOOTING_INTERVAL: f32 = 0.2;
+const BULLET_DIAMETER: f32 = 20.;
+const BULLET_SPEED: f32 = 600.0;
+
+const ENEMY_GEN_INTERVAL: f32 = 5.0;
 
 const WALL_THICKNESS: f32 = 10.0;
 // x coordinates
@@ -31,21 +35,15 @@ const RIGHT_WALL: f32 = 450.;
 const BOTTOM_WALL: f32 = -300.;
 const TOP_WALL: f32 = 300.;
 
-const BRICK_SIZE: Vec2 = Vec2::new(100., 30.);
-// These values are exact
-const GAP_BETWEEN_PADDLE_AND_BRICKS: f32 = 270.0;
-const GAP_BETWEEN_BRICKS: f32 = 5.0;
-// These values are lower bounds, as the number of bricks is computed
-const GAP_BETWEEN_BRICKS_AND_CEILING: f32 = 20.0;
-const GAP_BETWEEN_BRICKS_AND_SIDES: f32 = 20.0;
-
 const SCOREBOARD_FONT_SIZE: f32 = 40.0;
 const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
+const PLAYER_PLANE_HP: u32 = 10;
+const ENEMY_PLANE_HP: u32 = 1;
 
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
-const PADDLE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
-const BALL_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
-const BRICK_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
+const PLANE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
+const BULLET_COLOR: Color = Color::rgb(0.7, 0.3, 0.3);
+// const BRICK_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
 const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
@@ -53,16 +51,18 @@ const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 // This plugin will contain the game. It will focus on the state `GameState::Game`
 pub fn game_plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::Game), game_setup)
-        .add_event::<CollisionEvent>()
+        .add_event::<HittingEvent>()
         // Add our gameplay simulation systems to the fixed timestep schedule
         // which runs at 64 Hz by default
         .add_systems(
             FixedUpdate,
             (
+                generate_enemy,
+                shoot_bullets,
                 apply_velocity,
-                move_paddle,
-                check_for_collisions,
-                play_collision_sound,
+                move_player_plane,
+                check_for_hitting,
+                play_hitting_sound,
             )
                 // `chain`ing systems together runs them in order
                 .chain()
@@ -82,58 +82,65 @@ pub fn game_plugin(app: &mut App) {
 #[derive(Component)]
 struct OnGameScreen;
 
+#[derive(Component)]
+struct Player;
+
 #[derive(Resource, Deref, DerefMut)]
-struct GameTimer(Timer);
+struct EnemyGenerateTimer(Timer);
 
 // Add the game's entities to our world
 fn game_setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    // mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    commands.insert_resource(Scoreboard { score: 0 });
+    commands.insert_resource(Scoreboard { hp: 10, score: 0 });
     commands.insert_resource(ClearColor(BACKGROUND_COLOR));
+    commands.insert_resource(EnemyGenerateTimer(Timer::from_seconds(
+        ENEMY_GEN_INTERVAL,
+        TimerMode::Repeating,
+    )));
 
     // commands.spawn(Camera2dBundle::default());
 
     // Sound
-    let ball_collision_sound = asset_server.load("sounds/breakout_collision.ogg");
-    commands.insert_resource(CollisionSound(ball_collision_sound));
+    let hitting_sound = asset_server.load("sounds/bullet_hitting.ogg");
+    commands.insert_resource(HittingSound(hitting_sound));
 
-    // Paddle
-    let paddle_y = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
+    // Player Plane
+    let plane_y = BOTTOM_WALL + GAP_BETWEEN_PLANE_AND_WALL;
 
     commands.spawn((
-        SpriteBundle {
-            transform: Transform {
-                translation: Vec3::new(0.0, paddle_y, 0.0),
-                scale: PADDLE_SIZE,
+        PlaneBundle {
+            plane: Plane,
+            sprite_bundle: SpriteBundle {
+                transform: Transform {
+                    translation: Vec3::new(0.0, plane_y, 0.0),
+                    scale: PLANE_SIZE,
+                    ..default()
+                },
+                sprite: Sprite {
+                    color: PLANE_COLOR,
+                    ..default()
+                },
                 ..default()
             },
-            sprite: Sprite {
-                color: PADDLE_COLOR,
-                ..default()
+            hp: HP(PLAYER_PLANE_HP),
+            on_game_screen: OnGameScreen,
+            weapon: Weapon {
+                weapon_type: WeaponType::GatlingGun,
+                bullet_config: BulletConfig {
+                    color: BULLET_COLOR,
+                    diameter: BULLET_DIAMETER,
+                    relative_position: BULLET_STARTING_RELATIVE_POSITION,
+                    speed: BULLET_SPEED,
+                },
+                shoot_timer: Timer::from_seconds(BULLET_SHOOTING_INTERVAL, TimerMode::Repeating),
             },
-            ..default()
+            bullet_target: BulletTarget,
         },
-        Paddle,
-        Collider,
-        OnGameScreen,
-    ));
-
-    // Ball
-    commands.spawn((
-        MaterialMesh2dBundle {
-            mesh: meshes.add(Circle::default()).into(),
-            material: materials.add(BALL_COLOR),
-            transform: Transform::from_translation(BALL_STARTING_POSITION)
-                .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.)),
-            ..default()
-        },
-        Ball,
-        Velocity(INITIAL_BALL_DIRECTION.normalize() * BALL_SPEED),
-        OnGameScreen,
+        Player,
     ));
 
     // Scoreboard
@@ -169,82 +176,63 @@ fn game_setup(
     commands.spawn((WallBundle::new(WallLocation::Bottom), OnGameScreen));
     commands.spawn((WallBundle::new(WallLocation::Top), OnGameScreen));
 
-    // Bricks
-    let total_width_of_bricks = (RIGHT_WALL - LEFT_WALL) - 2. * GAP_BETWEEN_BRICKS_AND_SIDES;
-    let bottom_edge_of_bricks = paddle_y + GAP_BETWEEN_PADDLE_AND_BRICKS;
-    let total_height_of_bricks = TOP_WALL - bottom_edge_of_bricks - GAP_BETWEEN_BRICKS_AND_CEILING;
-
-    assert!(total_width_of_bricks > 0.0);
-    assert!(total_height_of_bricks > 0.0);
-
-    // Given the space available, compute how many rows and columns of bricks we can fit
-    let n_columns = (total_width_of_bricks / (BRICK_SIZE.x + GAP_BETWEEN_BRICKS)).floor() as usize;
-    let n_rows = (total_height_of_bricks / (BRICK_SIZE.y + GAP_BETWEEN_BRICKS)).floor() as usize;
-    let n_vertical_gaps = n_columns - 1;
-
-    // Because we need to round the number of columns,
-    // the space on the top and sides of the bricks only captures a lower bound, not an exact value
-    let center_of_bricks = (LEFT_WALL + RIGHT_WALL) / 2.0;
-    let left_edge_of_bricks = center_of_bricks
-        // Space taken up by the bricks
-        - (n_columns as f32 / 2.0 * BRICK_SIZE.x)
-        // Space taken up by the gaps
-        - n_vertical_gaps as f32 / 2.0 * GAP_BETWEEN_BRICKS;
-
-    // In Bevy, the `translation` of an entity describes the center point,
-    // not its bottom-left corner
-    let offset_x = left_edge_of_bricks + BRICK_SIZE.x / 2.;
-    let offset_y = bottom_edge_of_bricks + BRICK_SIZE.y / 2.;
-
-    for row in 0..n_rows {
-        for column in 0..n_columns {
-            let brick_position = Vec2::new(
-                offset_x + column as f32 * (BRICK_SIZE.x + GAP_BETWEEN_BRICKS),
-                offset_y + row as f32 * (BRICK_SIZE.y + GAP_BETWEEN_BRICKS),
-            );
-
-            // brick
-            commands.spawn((
-                SpriteBundle {
-                    sprite: Sprite {
-                        color: BRICK_COLOR,
-                        ..default()
-                    },
-                    transform: Transform {
-                        translation: brick_position.extend(0.0),
-                        scale: Vec3::new(BRICK_SIZE.x, BRICK_SIZE.y, 1.0),
-                        ..default()
-                    },
-                    ..default()
-                },
-                Brick,
-                Collider,
-                OnGameScreen,
-            ));
-        }
-    }
 }
 
 #[derive(Component)]
-struct Paddle;
+struct Plane;
+
+#[derive(Bundle)]
+struct PlaneBundle {
+    plane: Plane,
+    weapon: Weapon,
+    on_game_screen: OnGameScreen,
+    hp: HP,
+    bullet_target: BulletTarget,
+    sprite_bundle: SpriteBundle,
+}
 
 #[derive(Component)]
-struct Ball;
+struct Weapon {
+    weapon_type: WeaponType,
+    bullet_config: BulletConfig,
+    shoot_timer: Timer,
+}
+enum WeaponType {
+    GatlingGun,
+    Laser,
+}
+struct BulletConfig {
+    color: Color,
+    relative_position: Vec3,
+    diameter: f32,
+    speed: f32,
+}
+
+#[derive(Component)]
+struct Bullet;
+
+// Bullet will despawn when hitting the entity with the BulletTarget component
+#[derive(Component)]
+struct BulletTarget;
+
+/// HP will decrease when hitted with Bullet
+/// When HP is 0, the entity with HP component will be despawned
+#[derive(Component)]
+struct HP(u32);
 
 #[derive(Component, Deref, DerefMut)]
 struct Velocity(Vec2);
 
-#[derive(Component)]
-struct Collider;
-
-#[derive(Event, Default)]
-struct CollisionEvent;
-
+#[derive(Event)]
+enum HittingEvent {
+    HitWall,
+    HitPlane,
+}
 #[derive(Component)]
 struct Brick;
 
 #[derive(Resource)]
-struct CollisionSound(Handle<AudioSource>);
+struct HittingSound(Handle<AudioSource>);
 
 // This bundle is a collection of the components that define a "wall" in our game
 #[derive(Bundle)]
@@ -252,7 +240,7 @@ struct WallBundle {
     // You can nest bundles inside of other bundles like this
     // Allowing you to compose their functionality
     sprite_bundle: SpriteBundle,
-    collider: Collider,
+    collider: BulletTarget,
 }
 
 /// Which side of the arena is this wall located on?
@@ -313,7 +301,7 @@ impl WallBundle {
                 },
                 ..default()
             },
-            collider: Collider,
+            collider: BulletTarget,
         }
     }
 }
@@ -321,38 +309,89 @@ impl WallBundle {
 // This resource tracks the game's score
 #[derive(Resource)]
 struct Scoreboard {
-    score: usize,
+    hp: u32,
+    score: u32,
 }
 
 #[derive(Component)]
 struct ScoreboardUi;
 
-fn move_paddle(
+fn generate_enemy(mut commands: Commands, time: Res<Time>, mut timer: ResMut<EnemyGenerateTimer>) {
+    let mut rng = rand::thread_rng();
+    let plane_x = rng
+        .gen_range(LEFT_WALL + GAP_BETWEEN_PLANE_AND_WALL..RIGHT_WALL - GAP_BETWEEN_PLANE_AND_WALL);
+    let plane_y = TOP_WALL - GAP_BETWEEN_PLANE_AND_WALL;
+    if timer.tick(time.delta()).just_finished() {
+        commands.spawn(PlaneBundle {
+            sprite_bundle: SpriteBundle {
+                transform: Transform {
+                    translation: Vec3::new(plane_x, plane_y, 0.0),
+                    scale: PLANE_SIZE,
+                    ..default()
+                },
+                sprite: Sprite {
+                    color: PLANE_COLOR,
+                    ..default()
+                },
+                ..default()
+            },
+            plane: Plane,
+            weapon: Weapon {
+                weapon_type: WeaponType::GatlingGun,
+                bullet_config: BulletConfig {
+                    color: BULLET_COLOR,
+                    diameter: BULLET_DIAMETER,
+                    relative_position: -BULLET_STARTING_RELATIVE_POSITION,
+                    speed: -BULLET_SPEED,
+                },
+                shoot_timer: Timer::from_seconds(BULLET_SHOOTING_INTERVAL, TimerMode::Repeating),
+            },
+            bullet_target: BulletTarget,
+            on_game_screen: OnGameScreen,
+            hp: HP(ENEMY_PLANE_HP),
+        });
+    }
+}
+
+fn move_player_plane(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut Transform, With<Paddle>>,
+    mut query: Query<&mut Transform, With<Player>>,
     time: Res<Time>,
 ) {
-    let mut paddle_transform = query.single_mut();
-    let mut direction = 0.0;
+    let mut plane_transform = query.single_mut();
+    let mut direction = Vec3::new(0.0, 0.0, 0.0);
 
     if keyboard_input.pressed(KeyCode::ArrowLeft) {
-        direction -= 1.0;
+        direction.x -= 1.0;
     }
 
     if keyboard_input.pressed(KeyCode::ArrowRight) {
-        direction += 1.0;
+        direction.x += 1.0;
     }
 
-    // Calculate the new horizontal paddle position based on player input
-    let new_paddle_position =
-        paddle_transform.translation.x + direction * PADDLE_SPEED * time.delta_seconds();
+    if keyboard_input.pressed(KeyCode::ArrowDown) {
+        direction.y -= 1.0;
+    }
 
-    // Update the paddle position,
-    // making sure it doesn't cause the paddle to leave the arena
-    let left_bound = LEFT_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.x / 2.0 + PADDLE_PADDING;
-    let right_bound = RIGHT_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.x / 2.0 - PADDLE_PADDING;
+    if keyboard_input.pressed(KeyCode::ArrowUp) {
+        direction.y += 1.0;
+    }
+    assert_eq!(plane_transform.translation.z, 0.0);
+    // Calculate the new horizontal plane position based on player input
+    let new_plane_position =
+        plane_transform.translation + direction * PLAYER_PLANE_SPEED * time.delta_seconds();
 
-    paddle_transform.translation.x = new_paddle_position.clamp(left_bound, right_bound);
+    // Update the plane position,
+    // making sure it doesn't cause the plane to leave the arena
+    let left_bound = LEFT_WALL + WALL_THICKNESS / 2.0 + PLANE_SIZE.x / 2.0 + PLANE_PADDING;
+    let right_bound = RIGHT_WALL - WALL_THICKNESS / 2.0 - PLANE_SIZE.x / 2.0 - PLANE_PADDING;
+    let down_bound = BOTTOM_WALL + WALL_THICKNESS / 2.0 + PLANE_SIZE.x / 2.0 + PLANE_PADDING;
+    let up_bound = TOP_WALL - WALL_THICKNESS / 2.0 - PLANE_SIZE.x / 2.0 - PLANE_PADDING;
+
+    plane_transform.translation = new_plane_position.clamp(
+        Vec3::new(left_bound, down_bound, 0.0),
+        Vec3::new(right_bound, up_bound, 0.0),
+    );
 }
 
 fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, time: Res<Time>) {
@@ -364,7 +403,53 @@ fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, time: Res<Time>
 
 fn update_scoreboard(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text, With<ScoreboardUi>>) {
     let mut text = query.single_mut();
-    text.sections[1].value = scoreboard.score.to_string();
+    let mut display = scoreboard.score.to_string();
+    display.push_str(" | HP: ");
+    display.push_str(&scoreboard.hp.to_string());
+    text.sections[1].value = display;
+}
+
+fn shoot_bullets(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut weapon_query: Query<(&mut Weapon, &mut Transform), With<Plane>>,
+) {
+    for (mut weapon, weapon_transform) in &mut weapon_query {
+        if weapon.shoot_timer.tick(time.delta()).just_finished() {
+            let bullet_position =
+                weapon_transform.translation + weapon.bullet_config.relative_position;
+
+            match weapon.weapon_type {
+                WeaponType::GatlingGun => commands.spawn((
+                    MaterialMesh2dBundle {
+                        mesh: meshes.add(Circle::default()).into(),
+                        material: materials.add(weapon.bullet_config.color).into(),
+                        transform: Transform::from_translation(bullet_position)
+                            .with_scale(Vec2::splat(weapon.bullet_config.diameter).extend(1.)),
+                        ..default()
+                    },
+                    Velocity(Vec2::new(0.0, weapon.bullet_config.speed)),
+                    Bullet,
+                    OnGameScreen,
+                )),
+                WeaponType::Laser => {
+                    //TODO: Implement laser
+                    commands.spawn((
+                        MaterialMesh2dBundle {
+                            mesh: meshes.add(Circle::default()).into(),
+                            material: materials.add(weapon.bullet_config.color).into(),
+                            transform: Transform::from_translation(bullet_position)
+                                .with_scale(Vec2::splat(weapon.bullet_config.diameter).extend(1.)),
+                            ..default()
+                        },
+                        OnGameScreen,
+                    ))
+                }
+            };
+        }
+    }
 }
 
 fn back_on_esc(
@@ -384,110 +469,86 @@ fn back_on_esc(
 }
 
 fn restore_background(mut commands: Commands) {
-    commands.remove_resource::<ClearColor>();
     commands.insert_resource(ClearColor::default());
 }
 
-fn check_for_collisions(
+fn check_for_hitting(
     mut commands: Commands,
     mut scoreboard: ResMut<Scoreboard>,
-    mut ball_query: Query<(&mut Velocity, &Transform), With<Ball>>,
-    collider_query: Query<(Entity, &Transform, Option<&Brick>), With<Collider>>,
-    mut collision_events: EventWriter<CollisionEvent>,
+    bullet_query: Query<(Entity, &Transform), With<Bullet>>,
+    mut bullet_target_query: Query<
+        (Entity, &Transform, Option<&mut HP>, Option<&Player>),
+        With<BulletTarget>,
+    >,
+    mut hitting_events: EventWriter<HittingEvent>,
+    mut game_state: ResMut<NextState<GameState>>,
 ) {
-    let (mut ball_velocity, ball_transform) = ball_query.single_mut();
-
-    // check collision with walls
-    for (collider_entity, transform, maybe_brick) in &collider_query {
-        let collision = collide_with_side(
-            BoundingCircle::new(ball_transform.translation.truncate(), BALL_DIAMETER / 2.),
-            Aabb2d::new(
+    for (bullet_entity, bullet_transform) in bullet_query.iter() {
+        let mut despawn_bullet = false;
+        for (target_entity, transform, maybe_hp, maybe_player) in &mut bullet_target_query {
+            let bullet_shape = BoundingCircle::new(
+                bullet_transform.translation.truncate(),
+                BULLET_DIAMETER / 2.,
+            );
+            let bullet_target_shape = Aabb2d::new(
                 transform.translation.truncate(),
                 transform.scale.truncate() / 2.,
-            ),
-        );
+            );
 
-        if let Some(collision) = collision {
-            // Sends a collision event so that other systems can react to the collision
-            collision_events.send_default();
+            if bullet_shape.intersects(&bullet_target_shape) {
+                // Sends a hitting event so that other systems can react to the hitting
+                despawn_bullet = true;
 
-            // Bricks should be despawned and increment the scoreboard on collision
-            if maybe_brick.is_some() {
-                scoreboard.score += 1;
-                commands.entity(collider_entity).despawn();
+                // Bricks should be despawned and increment the scoreboard on hitting
+                match maybe_hp {
+                    Some(mut hp) => {
+                        hp.0 = hp.0.saturating_sub(1);
+                        if hp.0 == 0 {
+                            commands.entity(target_entity).despawn();
+                            match maybe_player {
+                                Some(_) => {
+                                    game_state.set(GameState::Menu);
+                                }
+                                None => {
+                                    scoreboard.score += 1;
+                                }
+                            }
+                        }
+                        if maybe_player.is_some() {
+                            scoreboard.hp -= 1;
+                        }
+                        hitting_events.send(HittingEvent::HitPlane)
+                    }
+                    // Walls should not be despawned
+                    None => hitting_events.send(HittingEvent::HitWall),
+                };
             }
-
-            // reflect the ball when it collides
-            let mut reflect_x = false;
-            let mut reflect_y = false;
-
-            // only reflect if the ball's velocity is going in the opposite direction of the
-            // collision
-            match collision {
-                Collision::Left => reflect_x = ball_velocity.x > 0.0,
-                Collision::Right => reflect_x = ball_velocity.x < 0.0,
-                Collision::Top => reflect_y = ball_velocity.y < 0.0,
-                Collision::Bottom => reflect_y = ball_velocity.y > 0.0,
-            }
-
-            // reflect velocity on the x-axis if we hit something on the x-axis
-            if reflect_x {
-                ball_velocity.x = -ball_velocity.x;
-            }
-
-            // reflect velocity on the y-axis if we hit something on the y-axis
-            if reflect_y {
-                ball_velocity.y = -ball_velocity.y;
-            }
+        }
+        if despawn_bullet {
+            commands.entity(bullet_entity).despawn();
         }
     }
 }
 
-fn play_collision_sound(
+fn play_hitting_sound(
     mut commands: Commands,
-    mut collision_events: EventReader<CollisionEvent>,
-    sound: Res<CollisionSound>,
+    mut hitting_events: EventReader<HittingEvent>,
+    sound: Res<HittingSound>,
 ) {
-    // Play a sound once per frame if a collision occurred.
-    if !collision_events.is_empty() {
-        // This prevents events staying active on the next frame.
-        collision_events.clear();
-        commands.spawn(AudioBundle {
-            source: sound.0.clone(),
-            // auto-despawn the entity when playback finishes
-            settings: PlaybackSettings::DESPAWN,
-        });
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-enum Collision {
-    Left,
-    Right,
-    Top,
-    Bottom,
-}
-
-// Returns `Some` if `ball` collides with `wall`. The returned `Collision` is the
-// side of `wall` that `ball` hit.
-fn collide_with_side(ball: BoundingCircle, wall: Aabb2d) -> Option<Collision> {
-    if !ball.intersects(&wall) {
-        return None;
-    }
-
-    let closest = wall.closest_point(ball.center());
-    let offset = ball.center() - closest;
-    let side = if offset.x.abs() > offset.y.abs() {
-        if offset.x < 0. {
-            Collision::Left
-        } else {
-            Collision::Right
+    // Play a sound once per frame if a hitting occurred.
+    for event in hitting_events.read() {
+        match event {
+            HittingEvent::HitPlane => {
+                commands.spawn(AudioBundle {
+                    source: sound.0.clone(),
+                    // auto-despawn the entity when playback finishes
+                    settings: PlaybackSettings::DESPAWN,
+                });
+                break;
+            }
+            HittingEvent::HitWall => {}
         }
-    } else if offset.y > 0. {
-        Collision::Top
-    } else {
-        Collision::Bottom
-    };
-
-    Some(side)
+    }
+    // This prevents events staying active on the next frame.
+    hitting_events.clear();
 }
