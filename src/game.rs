@@ -1,12 +1,13 @@
 //! This is the main game page of Thunder.
 
+mod config;
+
+use super::{despawn_screen, GameState};
 use bevy::{
     math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume},
     prelude::*,
     sprite::MaterialMesh2dBundle,
 };
-
-use super::{despawn_screen, GameState};
 use rand::Rng;
 //use super::{DisplayQuality, Volume};
 
@@ -23,9 +24,6 @@ const PLANE_PADDING: f32 = 10.0;
 const BULLET_STARTING_RELATIVE_POSITION: Vec3 = Vec3::new(0.0, 50.0, 0.0);
 const BULLET_SHOOTING_INTERVAL: f32 = 0.2;
 const BULLET_DIAMETER: f32 = 20.;
-const BULLET_SPEED: f32 = 600.0;
-
-const ENEMY_GEN_INTERVAL: f32 = 5.0;
 
 const WALL_THICKNESS: f32 = 10.0;
 // x coordinates
@@ -63,6 +61,7 @@ pub fn game_plugin(app: &mut App) {
                 move_player_plane,
                 check_for_hitting,
                 play_hitting_sound,
+                check_for_next_wave,
             )
                 // `chain`ing systems together runs them in order
                 .chain()
@@ -85,8 +84,14 @@ struct OnGameScreen;
 #[derive(Component)]
 struct Player;
 
+#[derive(Component)]
+struct Enemy;
+
 #[derive(Resource, Deref, DerefMut)]
 struct EnemyGenerateTimer(Timer);
+
+#[derive(Resource, Deref, DerefMut)]
+struct EnemyWaveIndex(u32);
 
 // Add the game's entities to our world
 fn game_setup(
@@ -98,9 +103,10 @@ fn game_setup(
     commands.insert_resource(Scoreboard { hp: 10, score: 0 });
     commands.insert_resource(ClearColor(BACKGROUND_COLOR));
     commands.insert_resource(EnemyGenerateTimer(Timer::from_seconds(
-        ENEMY_GEN_INTERVAL,
-        TimerMode::Repeating,
+        config::ENEMY_START_TIME,
+        TimerMode::Once,
     )));
+    commands.insert_resource(EnemyWaveIndex(0));
 
     // commands.spawn(Camera2dBundle::default());
 
@@ -134,7 +140,7 @@ fn game_setup(
                     color: BULLET_COLOR,
                     diameter: BULLET_DIAMETER,
                     relative_position: BULLET_STARTING_RELATIVE_POSITION,
-                    speed: BULLET_SPEED,
+                    speed: Vec2::new(0.0, config::USER_BULLET_SPEED),
                 },
                 shoot_timer: Timer::from_seconds(BULLET_SHOOTING_INTERVAL, TimerMode::Repeating),
             },
@@ -175,7 +181,6 @@ fn game_setup(
     commands.spawn((WallBundle::new(WallLocation::Right), OnGameScreen));
     commands.spawn((WallBundle::new(WallLocation::Bottom), OnGameScreen));
     commands.spawn((WallBundle::new(WallLocation::Top), OnGameScreen));
-
 }
 
 #[derive(Component)]
@@ -191,21 +196,23 @@ struct PlaneBundle {
     sprite_bundle: SpriteBundle,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 struct Weapon {
     weapon_type: WeaponType,
     bullet_config: BulletConfig,
     shoot_timer: Timer,
 }
+#[derive(Clone)]
 enum WeaponType {
     GatlingGun,
     Laser,
 }
+#[derive(Clone)]
 struct BulletConfig {
     color: Color,
     relative_position: Vec3,
     diameter: f32,
-    speed: f32,
+    speed: Vec2,
 }
 
 #[derive(Component)]
@@ -316,40 +323,47 @@ struct Scoreboard {
 #[derive(Component)]
 struct ScoreboardUi;
 
-fn generate_enemy(mut commands: Commands, time: Res<Time>, mut timer: ResMut<EnemyGenerateTimer>) {
+fn generate_enemy(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut timer: ResMut<EnemyGenerateTimer>,
+    enemy_wave_index: ResMut<EnemyWaveIndex>,
+) {
     let mut rng = rand::thread_rng();
-    let plane_x = rng
-        .gen_range(LEFT_WALL + GAP_BETWEEN_PLANE_AND_WALL..RIGHT_WALL - GAP_BETWEEN_PLANE_AND_WALL);
-    let plane_y = TOP_WALL - GAP_BETWEEN_PLANE_AND_WALL;
+
     if timer.tick(time.delta()).just_finished() {
-        commands.spawn(PlaneBundle {
-            sprite_bundle: SpriteBundle {
-                transform: Transform {
-                    translation: Vec3::new(plane_x, plane_y, 0.0),
-                    scale: PLANE_SIZE,
-                    ..default()
+        timer.0.reset();
+        timer.0.pause();
+        for _ in 0..config::ENEMY_GEN[enemy_wave_index.0 as usize].number_of_enemies {
+            let plane_x = rng.gen_range(
+                LEFT_WALL + GAP_BETWEEN_PLANE_AND_WALL..RIGHT_WALL - GAP_BETWEEN_PLANE_AND_WALL,
+            );
+            let plane_y = TOP_WALL - GAP_BETWEEN_PLANE_AND_WALL;
+            commands.spawn((
+                PlaneBundle {
+                    sprite_bundle: SpriteBundle {
+                        transform: Transform {
+                            translation: Vec3::new(plane_x, plane_y, 0.0),
+                            scale: PLANE_SIZE,
+                            ..default()
+                        },
+                        sprite: Sprite {
+                            color: PLANE_COLOR,
+                            ..default()
+                        },
+                        ..default()
+                    },
+                    plane: Plane,
+                    weapon: config::ENEMY_GEN[enemy_wave_index.0 as usize]
+                        .weapon
+                        .clone(),
+                    bullet_target: BulletTarget,
+                    on_game_screen: OnGameScreen,
+                    hp: HP(ENEMY_PLANE_HP),
                 },
-                sprite: Sprite {
-                    color: PLANE_COLOR,
-                    ..default()
-                },
-                ..default()
-            },
-            plane: Plane,
-            weapon: Weapon {
-                weapon_type: WeaponType::GatlingGun,
-                bullet_config: BulletConfig {
-                    color: BULLET_COLOR,
-                    diameter: BULLET_DIAMETER,
-                    relative_position: -BULLET_STARTING_RELATIVE_POSITION,
-                    speed: -BULLET_SPEED,
-                },
-                shoot_timer: Timer::from_seconds(BULLET_SHOOTING_INTERVAL, TimerMode::Repeating),
-            },
-            bullet_target: BulletTarget,
-            on_game_screen: OnGameScreen,
-            hp: HP(ENEMY_PLANE_HP),
-        });
+                Enemy,
+            ));
+        }
     }
 }
 
@@ -430,7 +444,7 @@ fn shoot_bullets(
                             .with_scale(Vec2::splat(weapon.bullet_config.diameter).extend(1.)),
                         ..default()
                     },
-                    Velocity(Vec2::new(0.0, weapon.bullet_config.speed)),
+                    Velocity(weapon.bullet_config.speed),
                     Bullet,
                     OnGameScreen,
                 )),
@@ -551,4 +565,24 @@ fn play_hitting_sound(
     }
     // This prevents events staying active on the next frame.
     hitting_events.clear();
+}
+
+fn check_for_next_wave(
+    plane: Query<&Enemy>,
+    mut timer: ResMut<EnemyGenerateTimer>,
+    mut enemy_wave_index: ResMut<EnemyWaveIndex>,
+    mut game_state: ResMut<NextState<GameState>>,
+) {
+    if plane.iter().next().is_none() && timer.paused() {
+        info!("All enemies are destroyed. Next wave is coming.");
+        enemy_wave_index.0 += 1;
+
+        *timer = EnemyGenerateTimer(Timer::from_seconds(
+            config::ENEMY_GEN_INTERVAL,
+            TimerMode::Once,
+        ));
+        if enemy_wave_index.0 as usize >= config::ENEMY_GEN.len() {
+            game_state.set(GameState::Menu);
+        }
+    }
 }
