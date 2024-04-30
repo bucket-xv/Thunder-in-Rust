@@ -19,7 +19,7 @@ enum GameState {
     Game,
 }
 
-// One of the two settings that can be set through the menu. It will be a resource in the app
+// Display settings that can be set through the menu. It will be a resource in the app
 #[derive(Resource, Debug, Component, PartialEq, Eq, Clone, Copy)]
 enum DisplayQuality {
     Low,
@@ -27,9 +27,21 @@ enum DisplayQuality {
     High,
 }
 
-// One of the two settings that can be set through the menu. It will be a resource in the app
+// Volume settings that can be set through the menu. It will be a resource in the app
 #[derive(Resource, Debug, Component, PartialEq, Eq, Clone, Copy)]
 struct Volume(u32);
+
+// Levels to play that can be choose in the menu. It will be a resource in the app
+#[derive(Resource, Debug, Component, PartialEq, Eq, Clone, Copy)]
+enum Level {
+    Unset,
+    Level1,
+    Level2, 
+    Level3, 
+    Level4, 
+    Level5, 
+    Level6,
+}
 
 fn main() {
     App::new()
@@ -37,6 +49,7 @@ fn main() {
         // Insert as resource the initial value for the settings resources
         .insert_resource(DisplayQuality::Medium)
         .insert_resource(Volume(7))
+        .insert_resource(Level::Unset)
         // .insert_resource(ResolutionSettings {
         //     large: Vec2::new(1920.0, 1080.0),
         //     medium: Vec2::new(800.0, 600.0),

@@ -1,5 +1,7 @@
 use bevy::{app::AppExit, prelude::*};
 
+use crate::Level;
+
 use super::{despawn_screen, DisplayQuality, GameState, Volume, TEXT_COLOR};
 
 // This plugin manages the menu, with 5 different screens:
@@ -16,6 +18,16 @@ pub fn menu_plugin(app: &mut App) {
         // Systems to handle the main menu screen
         .add_systems(OnEnter(MenuState::Main), main_menu_setup)
         .add_systems(OnExit(MenuState::Main), despawn_screen::<OnMainMenuScreen>)
+        // Systems to handle the level picking menu screen
+        .add_systems(OnEnter(MenuState::Levels), level_select_menu_setup)
+        .add_systems(
+            Update,
+            (setting_button::<Level>.run_if(in_state(MenuState::Levels)),),
+        )
+        .add_systems(
+            OnExit(MenuState::Levels),
+            despawn_screen::<OnLevelsMenuScreen>,
+        )
         // Systems to handle the settings menu screen
         .add_systems(OnEnter(MenuState::Settings), settings_menu_setup)
         .add_systems(
@@ -56,6 +68,7 @@ pub fn menu_plugin(app: &mut App) {
 #[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
 enum MenuState {
     Main,
+    Levels,
     Settings,
     SettingsDisplay,
     SettingsSound,
@@ -66,6 +79,9 @@ enum MenuState {
 // Tag component used to tag entities added on the main menu screen
 #[derive(Component)]
 struct OnMainMenuScreen;
+
+#[derive(Component)]
+struct OnLevelsMenuScreen;
 
 // Tag component used to tag entities added on the settings menu screen
 #[derive(Component)]
@@ -91,6 +107,7 @@ struct SelectedOption;
 // All actions that can be triggered from a button click
 #[derive(Component)]
 enum MenuButtonAction {
+    SelectLevel,
     Play,
     Settings,
     SettingsDisplay,
@@ -193,7 +210,7 @@ fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     // Display the game name
                     parent.spawn(
                         TextBundle::from_section(
-                            "Bevy Game Menu UI",
+                            "Thunder",
                             TextStyle {
                                 font_size: 80.0,
                                 color: TEXT_COLOR,
@@ -217,7 +234,7 @@ fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 background_color: NORMAL_BUTTON.into(),
                                 ..default()
                             },
-                            MenuButtonAction::Play,
+                            MenuButtonAction::SelectLevel,
                         ))
                         .with_children(|parent| {
                             let icon = asset_server.load("textures/Game Icons/right.png");
@@ -269,6 +286,122 @@ fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 ..default()
                             });
                             parent.spawn(TextBundle::from_section("Quit", button_text_style));
+                        });
+                });
+        });
+}
+
+fn level_select_menu_setup(mut commands: Commands) {
+    let button_style = Style {
+        width: Val::Px(200.0),
+        height: Val::Px(65.0),
+        margin: UiRect::all(Val::Px(20.0)),
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+        ..default()
+    };
+    let button_text_style = TextStyle {
+        font_size: 40.0,
+        color: TEXT_COLOR,
+        ..default()
+    };
+
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                ..default()
+            },
+            OnLevelsMenuScreen,
+        ))
+        .with_children(|parent| {
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        margin: UiRect::all(Val::Px(20.0)),
+                        ..default()
+                    },
+                    background_color: Color::CRIMSON.into(),
+                    ..default()
+                })
+                .with_children(|parent| {
+                    // Display a label for the current setting
+                    parent.spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Column,
+                            align_items: AlignItems::Center,
+                            margin: UiRect::all(Val::Px(20.0)),
+                            ..default()
+                        },
+                        background_color: Color::CRIMSON.into(),
+                        ..default()
+                    }).with_children(|parent| {
+                        parent.spawn(TextBundle::from_section(
+                            "Select Level",
+                            button_text_style.clone(),
+                        ));
+                    });
+                    parent
+                        .spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            background_color: Color::CRIMSON.into(),
+                            ..default()
+                        })
+                        .with_children(|parent| {
+                            // Display a button for each possible value
+                            for level_picked in [
+                                Level::Level1,
+                                Level::Level2,
+                                Level::Level3,
+                                Level::Level4,
+                                Level::Level5,
+                                Level::Level6,
+                            ] {
+                                let mut entity = parent.spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            width: Val::Px(150.0),
+                                            height: Val::Px(65.0),
+                                            ..button_style.clone()
+                                        },
+                                        background_color: NORMAL_BUTTON.into(),
+                                        ..default()
+                                    },
+                                    level_picked,
+                                    MenuButtonAction::Play,
+                                ));
+                                entity.with_children(|parent| {
+                                    parent.spawn(TextBundle::from_section(
+                                        format!("{level_picked:?}"),
+                                        button_text_style.clone(),
+                                    ));
+                                });
+                            }
+                        });
+                    // Display the back button to return to the settings screen
+                    parent
+                        .spawn((
+                            ButtonBundle {
+                                style: button_style,
+                                background_color: NORMAL_BUTTON.into(),
+                                ..default()
+                            },
+                            MenuButtonAction::BackToMainMenu,
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn(TextBundle::from_section("Back", button_text_style));
                         });
                 });
         });
@@ -548,6 +681,9 @@ fn menu_action(
             match menu_button_action {
                 MenuButtonAction::Quit => {
                     app_exit_events.send(AppExit);
+                }
+                MenuButtonAction::SelectLevel => {
+                    menu_state.set(MenuState::Levels);
                 }
                 MenuButtonAction::Play => {
                     game_state.set(GameState::Game);
