@@ -1,3 +1,6 @@
+//! This is the menu page together with the setting page. The volume and
+//! display quality settings are yet to implement.
+
 use bevy::{app::AppExit, prelude::*};
 
 use crate::Level;
