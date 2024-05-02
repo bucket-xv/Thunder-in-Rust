@@ -3,6 +3,7 @@
 mod game;
 mod menu;
 mod splash;
+mod level_splash;
 
 use bevy::prelude::*;
 
@@ -14,6 +15,7 @@ enum GameState {
     #[default]
     Splash,
     Menu,
+    LevelSplash,
     Game,
 }
 
@@ -31,15 +33,7 @@ struct Volume(u32);
 
 // Levels to play that can be choose in the menu. It will be a resource in the app
 #[derive(Resource, Debug, Component, PartialEq, Eq, Clone, Copy)]
-enum Level {
-    Unset,
-    Level1,
-    Level2, 
-    Level3, 
-    Level4, 
-    Level5, 
-    Level6,
-}
+struct Level(u32);
 
 fn main() {
     App::new()
@@ -47,7 +41,7 @@ fn main() {
         // Insert as resource the initial value for the settings resources
         .insert_resource(DisplayQuality::Medium)
         .insert_resource(Volume(7))
-        .insert_resource(Level::Unset)
+        .insert_resource(Level(0))
         // .insert_resource(ResolutionSettings {
         //     large: Vec2::new(1920.0, 1080.0),
         //     medium: Vec2::new(800.0, 600.0),
@@ -57,7 +51,7 @@ fn main() {
         .init_state::<GameState>()
         .add_systems(Startup, setup)
         // Adds the plugins for each state
-        .add_plugins((splash::splash_plugin, menu::menu_plugin, game::game_plugin))
+        .add_plugins((splash::splash_plugin, menu::menu_plugin, level_splash::level_splash_plugin, game::game_plugin))
         .run();
 }
 

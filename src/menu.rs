@@ -25,7 +25,7 @@ pub fn menu_plugin(app: &mut App) {
         .add_systems(OnEnter(MenuState::Levels), level_select_menu_setup)
         .add_systems(
             Update,
-            (setting_button::<Level>.run_if(in_state(MenuState::Levels)),),
+            (level_button.run_if(in_state(MenuState::Levels)),),
         )
         .add_systems(
             OnExit(MenuState::Levels),
@@ -111,7 +111,6 @@ struct SelectedOption;
 #[derive(Component)]
 enum MenuButtonAction {
     SelectLevel,
-    Play,
     Settings,
     SettingsDisplay,
     SettingsSound,
@@ -152,6 +151,22 @@ fn setting_button<T: Resource + Component + PartialEq + Copy>(
             commands.entity(previous_button).remove::<SelectedOption>();
             commands.entity(entity).insert(SelectedOption);
             *setting = *button_setting;
+        }
+    }
+}
+
+// This system sets the game level to the level selected by the player, and enters the game
+fn level_button(
+    interaction_query: Query<(&Interaction, &Level), (Changed<Interaction>, With<Button>)>,
+    mut level_setting: ResMut<Level>,
+    mut menu_state: ResMut<NextState<MenuState>>,
+    mut game_state: ResMut<NextState<GameState>>,
+) {
+    for (interaction, level_picked) in &interaction_query {
+        if *interaction == Interaction::Pressed {
+            *level_setting = *level_picked;
+            game_state.set(GameState::LevelSplash);
+            menu_state.set(MenuState::Disabled);
         }
     }
 }
@@ -337,21 +352,23 @@ fn level_select_menu_setup(mut commands: Commands) {
                 })
                 .with_children(|parent| {
                     // Display a label for the current setting
-                    parent.spawn(NodeBundle {
-                        style: Style {
-                            flex_direction: FlexDirection::Column,
-                            align_items: AlignItems::Center,
-                            margin: UiRect::all(Val::Px(20.0)),
+                    parent
+                        .spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Column,
+                                align_items: AlignItems::Center,
+                                margin: UiRect::all(Val::Px(20.0)),
+                                ..default()
+                            },
+                            background_color: Color::CRIMSON.into(),
                             ..default()
-                        },
-                        background_color: Color::CRIMSON.into(),
-                        ..default()
-                    }).with_children(|parent| {
-                        parent.spawn(TextBundle::from_section(
-                            "Select Level",
-                            button_text_style.clone(),
-                        ));
-                    });
+                        })
+                        .with_children(|parent| {
+                            parent.spawn(TextBundle::from_section(
+                                "Select Level",
+                                button_text_style.clone(),
+                            ));
+                        });
                     parent
                         .spawn(NodeBundle {
                             style: Style {
@@ -364,14 +381,8 @@ fn level_select_menu_setup(mut commands: Commands) {
                         })
                         .with_children(|parent| {
                             // Display a button for each possible value
-                            for level_picked in [
-                                Level::Level1,
-                                Level::Level2,
-                                Level::Level3,
-                                Level::Level4,
-                                Level::Level5,
-                                Level::Level6,
-                            ] {
+                            for level_number in 1..=5 {
+                                let level_picked = Level(level_number);
                                 let mut entity = parent.spawn((
                                     ButtonBundle {
                                         style: Style {
@@ -383,11 +394,10 @@ fn level_select_menu_setup(mut commands: Commands) {
                                         ..default()
                                     },
                                     level_picked,
-                                    MenuButtonAction::Play,
                                 ));
                                 entity.with_children(|parent| {
                                     parent.spawn(TextBundle::from_section(
-                                        format!("{level_picked:?}"),
+                                        format!("Level {level_number}"),
                                         button_text_style.clone(),
                                     ));
                                 });
@@ -677,7 +687,6 @@ fn menu_action(
     >,
     mut app_exit_events: EventWriter<AppExit>,
     mut menu_state: ResMut<NextState<MenuState>>,
-    mut game_state: ResMut<NextState<GameState>>,
 ) {
     for (interaction, menu_button_action) in &interaction_query {
         if *interaction == Interaction::Pressed {
@@ -687,10 +696,6 @@ fn menu_action(
                 }
                 MenuButtonAction::SelectLevel => {
                     menu_state.set(MenuState::Levels);
-                }
-                MenuButtonAction::Play => {
-                    game_state.set(GameState::Game);
-                    menu_state.set(MenuState::Disabled);
                 }
                 MenuButtonAction::Settings => menu_state.set(MenuState::Settings),
                 MenuButtonAction::SettingsDisplay => {
