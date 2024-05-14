@@ -375,19 +375,19 @@ fn move_player_plane(
     let mut plane_transform = query.single_mut();
     let mut direction = Vec3::new(0.0, 0.0, 0.0);
 
-    if keyboard_input.pressed(KeyCode::ArrowLeft) {
+    if keyboard_input.pressed(KeyCode::ArrowLeft) || keyboard_input.pressed(KeyCode::KeyA) {
         direction.x -= 1.0;
     }
 
-    if keyboard_input.pressed(KeyCode::ArrowRight) {
+    if keyboard_input.pressed(KeyCode::ArrowRight) || keyboard_input.pressed(KeyCode::KeyD) {
         direction.x += 1.0;
     }
 
-    if keyboard_input.pressed(KeyCode::ArrowDown) {
+    if keyboard_input.pressed(KeyCode::ArrowDown) || keyboard_input.pressed(KeyCode::KeyS) {
         direction.y -= 1.0;
     }
 
-    if keyboard_input.pressed(KeyCode::ArrowUp) {
+    if keyboard_input.pressed(KeyCode::ArrowUp) || keyboard_input.pressed(KeyCode::KeyW) {
         direction.y += 1.0;
     }
     assert_eq!(plane_transform.translation.z, 0.0);
@@ -521,6 +521,7 @@ fn check_for_hitting(
                             commands.entity(target_entity).despawn();
                             match maybe_player {
                                 Some(_) => {
+                                    // TODO: Defeat 
                                     game_state.set(GameState::Menu);
                                 }
                                 None => {

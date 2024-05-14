@@ -4,8 +4,10 @@ mod game;
 mod menu;
 mod splash;
 mod level_splash;
+mod animes;
 
 use bevy::prelude::*;
+use bevy_spritesheet_animation::prelude::*;
 
 const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 
@@ -38,6 +40,11 @@ struct Level(u32);
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        // *** begin bevy_spritesheet_animation example comment
+        // Add the plugin to enable animations.
+        // This makes the SpritesheetLibrary resource available to your systems.
+        // *** end bevy_spritesheet_animation example comment
+        .add_plugins(SpritesheetAnimationPlugin)
         // Insert as resource the initial value for the settings resources
         .insert_resource(DisplayQuality::Medium)
         .insert_resource(Volume(7))
@@ -50,6 +57,8 @@ fn main() {
         // Declare the game state, whose starting value is determined by the `Default` trait
         .init_state::<GameState>()
         .add_systems(Startup, setup)
+        // for test
+        //.add_systems(Startup, animes::setup_character)
         // Adds the plugins for each state
         .add_plugins((splash::splash_plugin, menu::menu_plugin, level_splash::level_splash_plugin, game::game_plugin))
         .run();
