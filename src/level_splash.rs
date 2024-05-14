@@ -15,7 +15,7 @@ pub fn level_splash_plugin(app: &mut App) {
         .add_systems(Update, countdown.run_if(in_state(GameState::LevelSplash)))
         // When exiting the state, despawn everything that was spawned for this screen
         .add_systems(
-            OnExit(GameState::Splash),
+            OnExit(GameState::LevelSplash),
             despawn_screen::<OnLevelSplashScreen>,
         );
 }
