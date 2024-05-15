@@ -66,7 +66,7 @@ pub fn menu_plugin(app: &mut App) {
 
 // State used for the current menu screen
 #[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
-enum MenuState {
+pub enum MenuState {
     Main,
     Levels,
     Settings,
@@ -172,7 +172,7 @@ fn menu_setup(mut menu_state: ResMut<NextState<MenuState>>) {
     menu_state.set(MenuState::Main);
 }
 
-fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Common style for all buttons on the screen
     let button_style = Style {
         width: Val::Px(250.0),

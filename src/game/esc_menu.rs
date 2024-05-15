@@ -15,6 +15,7 @@ pub fn esc_menu_plugin(app: &mut App) {
             OnExit(EscMenuState::MainEscMenu),
             despawn_screen::<OnMainEscMenuScreen>,
         )
+        .add_systems(OnEnter(EscMenuState::BackToMainMenu), back_to_main_menu)
         .add_systems(
             Update,
             (esc_menu_action, button_system).run_if(in_state(EscMenuState::MainEscMenu)),
@@ -26,7 +27,8 @@ pub fn esc_menu_plugin(app: &mut App) {
 enum EscMenuState {
     MainEscMenu, // The main menu screen
     BackToGame,  // The screen that appears when the player clicks the "Back to Game" button
-    BackToMain,  // The screen that appears when the player clicks the "Main Menu" button
+    // Menu(crate::menu::MenuState), // The screen that appears when the player clicks the "Main Menu" button
+    BackToMainMenu,
     #[default]
     Disabled,
 }
@@ -222,7 +224,7 @@ fn esc_menu_action(
                     app_exit_events.send(AppExit);
                 }
                 EscMenuButtonAction::BackToMainMenu => {
-                    esc_menu_state.set(EscMenuState::BackToMain);
+                    esc_menu_state.set(EscMenuState::BackToMainMenu);
                 }
                 EscMenuButtonAction::BackToGame => {
                     esc_menu_state.set(EscMenuState::BackToGame);
@@ -230,4 +232,8 @@ fn esc_menu_action(
             }
         }
     }
+}
+
+fn back_to_main_menu(mut state: ResMut<NextState<GameState>>) {
+    state.set(GameState::Menu);
 }
