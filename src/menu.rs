@@ -23,10 +23,7 @@ pub fn menu_plugin(app: &mut App) {
         .add_systems(OnExit(MenuState::Main), despawn_screen::<OnMainMenuScreen>)
         // Systems to handle the level picking menu screen
         .add_systems(OnEnter(MenuState::Levels), level_select_menu_setup)
-        .add_systems(
-            Update,
-            (level_button.run_if(in_state(MenuState::Levels)),),
-        )
+        .add_systems(Update, (level_button.run_if(in_state(MenuState::Levels)),))
         .add_systems(
             OnExit(MenuState::Levels),
             despawn_screen::<OnLevelsMenuScreen>,

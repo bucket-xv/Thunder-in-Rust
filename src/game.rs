@@ -1,6 +1,7 @@
 //! This is the main game page of Thunder.
 
 mod config;
+pub mod esc_menu;
 
 use super::{despawn_screen, GameState};
 use bevy::{
@@ -477,7 +478,7 @@ fn back_on_esc(
         }
 
         if input.just_pressed(KeyCode::Escape) {
-            game_state.set(GameState::Menu);
+            game_state.set(GameState::EscMenu);
         }
     }
 }
@@ -521,7 +522,7 @@ fn check_for_hitting(
                             commands.entity(target_entity).despawn();
                             match maybe_player {
                                 Some(_) => {
-                                    // TODO: Defeat 
+                                    // TODO: Defeat
                                     game_state.set(GameState::Menu);
                                 }
                                 None => {

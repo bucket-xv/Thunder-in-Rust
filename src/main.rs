@@ -1,10 +1,10 @@
 //! This is the main file that controls the general settings of the game.
 
+mod animes;
 mod game;
+mod level_splash;
 mod menu;
 mod splash;
-mod level_splash;
-mod animes;
 
 use bevy::prelude::*;
 use bevy_spritesheet_animation::prelude::*;
@@ -19,6 +19,7 @@ enum GameState {
     Menu,
     LevelSplash,
     Game,
+    EscMenu,
 }
 
 // Display settings that can be set through the menu. It will be a resource in the app
@@ -60,7 +61,13 @@ fn main() {
         // for test
         //.add_systems(Startup, animes::setup_character)
         // Adds the plugins for each state
-        .add_plugins((splash::splash_plugin, menu::menu_plugin, level_splash::level_splash_plugin, game::game_plugin))
+        .add_plugins((
+            splash::splash_plugin,
+            menu::menu_plugin,
+            game::esc_menu::esc_menu_plugin,
+            level_splash::level_splash_plugin,
+            game::game_plugin,
+        ))
         .run();
 }
 
