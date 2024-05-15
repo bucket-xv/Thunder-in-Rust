@@ -70,7 +70,7 @@ pub fn game_plugin(app: &mut App) {
         )
         .add_systems(
             Update,
-            (update_scoreboard, back_on_esc).run_if(in_state(GameState::Game)),
+            (update_scoreboard, back_on_esc, back_on_menu_botton).run_if(in_state(GameState::Game)),
         )
         .add_systems(
             OnExit(GameState::Game),
@@ -176,6 +176,8 @@ fn game_setup(
         }),
         OnGameScreen,
     ));
+
+    // Stop button
 
     // Walls
     commands.spawn((WallBundle::new(WallLocation::Left), OnGameScreen));

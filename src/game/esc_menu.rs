@@ -27,7 +27,6 @@ pub fn esc_menu_plugin(app: &mut App) {
 enum EscMenuState {
     MainEscMenu, // The main menu screen
     BackToGame,  // The screen that appears when the player clicks the "Back to Game" button
-    // Menu(crate::menu::MenuState), // The screen that appears when the player clicks the "Main Menu" button
     BackToMainMenu,
     #[default]
     Disabled,
