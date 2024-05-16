@@ -19,7 +19,8 @@ enum GameState {
     Menu,
     LevelSplash,
     Game,
-    EscMenu,
+    Stopped,
+    Init,
 }
 
 // Display settings that can be set through the menu. It will be a resource in the app

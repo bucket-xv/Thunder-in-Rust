@@ -9,16 +9,17 @@ use super::{despawn_screen, GameState};
 // - a main menu with "Main Menu", "Back to Game" and "Quit" buttons
 pub fn esc_menu_plugin(app: &mut App) {
     app.init_state::<EscMenuState>()
-        .add_systems(OnEnter(GameState::EscMenu), esc_menu_setup)
+        .add_systems(OnEnter(GameState::Stopped), esc_menu_setup)
         .add_systems(OnEnter(EscMenuState::MainEscMenu), esc_main_menu_setup)
-        .add_systems(
-            OnExit(EscMenuState::MainEscMenu),
-            despawn_screen::<OnMainEscMenuScreen>,
-        )
         .add_systems(OnEnter(EscMenuState::BackToMainMenu), back_to_main_menu)
+        .add_systems(OnEnter(EscMenuState::BackToGame), back_to_game)
         .add_systems(
             Update,
             (esc_menu_action, button_system).run_if(in_state(EscMenuState::MainEscMenu)),
+        )
+        .add_systems(
+            OnExit(EscMenuState::MainEscMenu),
+            despawn_screen::<OnMainEscMenuScreen>,
         );
 }
 
@@ -101,6 +102,7 @@ fn esc_main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn((
             NodeBundle {
                 style: Style {
+                    position_type: PositionType::Absolute,
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
                     align_items: AlignItems::Center,
@@ -235,4 +237,8 @@ fn esc_menu_action(
 
 fn back_to_main_menu(mut state: ResMut<NextState<GameState>>) {
     state.set(GameState::Menu);
+}
+
+fn back_to_game(mut state: ResMut<NextState<GameState>>) {
+    state.set(GameState::Game);
 }

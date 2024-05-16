@@ -36,6 +36,7 @@ const TOP_WALL: f32 = 300.;
 
 const SCOREBOARD_FONT_SIZE: f32 = 40.0;
 const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
+const MENU_BUTTON_PADDING: Val = Val::Px(10.0);
 const PLAYER_PLANE_HP: u32 = 10;
 const ENEMY_PLANE_HP: u32 = 1;
 
@@ -46,10 +47,11 @@ const BULLET_COLOR: Color = Color::rgb(0.7, 0.3, 0.3);
 const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
 const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
+const MENU_COLOR: Color = Color::rgb(0.5, 1.0, 0.5);
 
 // This plugin will contain the game. It will focus on the state `GameState::Game`
 pub fn game_plugin(app: &mut App) {
-    app.add_systems(OnEnter(GameState::Game), game_setup)
+    app.add_systems(OnEnter(GameState::Init), game_setup)
         .add_event::<HittingEvent>()
         // Add our gameplay simulation systems to the fixed timestep schedule
         // which runs at 64 Hz by default
@@ -70,10 +72,16 @@ pub fn game_plugin(app: &mut App) {
         )
         .add_systems(
             Update,
-            (update_scoreboard, back_on_esc, back_on_menu_botton).run_if(in_state(GameState::Game)),
+            (
+                update_scoreboard,
+                button_system,
+                game_menu_action,
+                back_on_esc,
+            )
+                .run_if(in_state(GameState::Game)),
         )
         .add_systems(
-            OnExit(GameState::Game),
+            OnEnter(GameState::Menu),
             (despawn_screen::<OnGameScreen>, restore_background),
         );
 }
@@ -94,9 +102,58 @@ struct EnemyGenerateTimer(Timer);
 #[derive(Resource, Deref, DerefMut)]
 struct EnemyWaveIndex(u32);
 
+const GAME_NORMAL_BUTTON: Color = Color::rgb(0.5, 0.5, 0.5); // Normal state: gray
+const GAME_HOVERED_BUTTON: Color = Color::rgb(0.6, 0.6, 0.6); // Hovered state: slightly lighter gray
+const GAME_HOVERED_PRESSED_BUTTON: Color = Color::rgb(0.4, 0.6, 0.4); // Hovered and pressed state: greenish gray
+const GAME_PRESSED_BUTTON: Color = Color::rgb(0.4, 0.7, 0.4); // Pressed state: more greenish gray
+
+#[derive(Component)]
+struct SelectedOption;
+
+#[derive(Component)]
+enum GameButtonAction {
+    Paused,
+}
+
+// This system handles changing all buttons color based on mouse interaction
+fn button_system(
+    mut interaction_query: Query<
+        (&Interaction, &mut BackgroundColor, Option<&SelectedOption>),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, mut color, selected) in &mut interaction_query {
+        *color = match (*interaction, selected) {
+            (Interaction::Pressed, _) | (Interaction::None, Some(_)) => GAME_PRESSED_BUTTON.into(),
+            (Interaction::Hovered, Some(_)) => GAME_HOVERED_PRESSED_BUTTON.into(),
+            (Interaction::Hovered, None) => GAME_HOVERED_BUTTON.into(),
+            (Interaction::None, None) => GAME_NORMAL_BUTTON.into(),
+        }
+    }
+}
+
+fn game_menu_action(
+    interaction_query: Query<
+        (&Interaction, &GameButtonAction),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut game_state: ResMut<NextState<GameState>>,
+) {
+    for (interaction, game_menu_button_action) in &interaction_query {
+        if *interaction == Interaction::Pressed {
+            match game_menu_button_action {
+                GameButtonAction::Paused => {
+                    game_state.set(GameState::Stopped);
+                }
+            }
+        }
+    }
+}
+
 // Add the game's entities to our world
 fn game_setup(
     mut commands: Commands,
+    mut game_state: ResMut<NextState<GameState>>,
     // mut meshes: ResMut<Assets<Mesh>>,
     // mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
@@ -177,13 +234,66 @@ fn game_setup(
         OnGameScreen,
     ));
 
-    // Stop button
+    // Buttion Style
+    let game_button_style = Style {
+        width: Val::Px(100.0),
+        height: Val::Px(45.0),
+        margin: UiRect {
+            top: MENU_BUTTON_PADDING,   // Adjust the top margin
+            right: MENU_BUTTON_PADDING, // Adjust the right margin
+            ..default()
+        },
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+        ..default()
+    };
+    let game_button_text_style = TextStyle {
+        font_size: 40.0,
+        color: MENU_COLOR,
+        ..default()
+    };
+
+    // Menu button
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(50.0),
+                    align_items: AlignItems::FlexStart,
+                    justify_content: JustifyContent::FlexEnd,
+                    ..default()
+                },
+                ..default()
+            },
+            OnGameScreen,
+        ))
+        .with_children(|parent| {
+            parent // turn to stopped menu
+                .spawn((
+                    ButtonBundle {
+                        style: game_button_style.clone(),
+                        background_color: GAME_NORMAL_BUTTON.into(),
+                        ..default()
+                    },
+                    GameButtonAction::Paused,
+                ))
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "MENU",
+                        game_button_text_style.clone(),
+                    ));
+                });
+        });
 
     // Walls
     commands.spawn((WallBundle::new(WallLocation::Left), OnGameScreen));
     commands.spawn((WallBundle::new(WallLocation::Right), OnGameScreen));
     commands.spawn((WallBundle::new(WallLocation::Bottom), OnGameScreen));
     commands.spawn((WallBundle::new(WallLocation::Top), OnGameScreen));
+
+    // Start the game
+    game_state.set(GameState::Game);
 }
 
 #[derive(Component)]
@@ -480,7 +590,7 @@ fn back_on_esc(
         }
 
         if input.just_pressed(KeyCode::Escape) {
-            game_state.set(GameState::EscMenu);
+            game_state.set(GameState::Stopped);
         }
     }
 }
