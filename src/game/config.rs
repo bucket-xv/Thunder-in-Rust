@@ -7,10 +7,9 @@ use rand::{thread_rng, Rng};
 
 use crate::game::*;
 
-pub const ENEMY_PLANE_HP: u32 = 2;
+pub const ENEMY_PLANE_HP: u32 = 3;
 pub const ENEMY_START_TIME: f32 = 3.0;
 pub const ENEMY_GEN_INTERVAL: f32 = 5.0;
-pub const USER_BULLET_SPEED: f32 = 500.0;
 const DEFAULT_BULLET_SPEED: f32 = 500.0;
 const PI: f32 = std::f32::consts::PI;
 

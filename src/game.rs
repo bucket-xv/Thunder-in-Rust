@@ -30,6 +30,7 @@ const PLANE_PADDING: f32 = 10.0;
 const BULLET_STARTING_RELATIVE_POSITION: Vec3 = Vec3::new(0.0, 50.0, 0.0);
 const BULLET_SHOOTING_INTERVAL: f32 = 0.2;
 const BULLET_DIAMETER: f32 = 20.;
+const USER_BULLET_SPEED: f32 = 500.0;
 
 const WALL_THICKNESS: f32 = 10.0;
 // x coordinates
@@ -41,9 +42,9 @@ const TOP_WALL: f32 = 300.;
 
 const SCOREBOARD_FONT_SIZE: f32 = 40.0;
 const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
+const HPBOARD_TEXT_PADDING: Val = Val::Px(50.0);
 const MENU_BUTTON_PADDING: Val = Val::Px(10.0);
-const PLAYER_PLANE_HP: u32 = 10;
-// const ENEMY_PLANE_HP: u32 = 1;
+const PLAYER_PLANE_HP: u32 = 20;
 
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 const PLANE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
@@ -79,6 +80,7 @@ pub fn game_plugin(app: &mut App) {
             Update,
             (
                 update_scoreboard,
+                update_hpboard,
                 button_system,
                 game_menu_action,
                 back_on_esc,
@@ -203,7 +205,7 @@ fn game_setup(
                     color: BULLET_COLOR,
                     diameter: BULLET_DIAMETER,
                     relative_position: BULLET_STARTING_RELATIVE_POSITION,
-                    speed: Vec2::new(0.0, config::USER_BULLET_SPEED),
+                    speed: Vec2::new(0.0, USER_BULLET_SPEED),
                 },
                 shoot_timer: Timer::from_seconds(BULLET_SHOOTING_INTERVAL, TimerMode::Repeating),
             },
@@ -233,6 +235,33 @@ fn game_setup(
         .with_style(Style {
             position_type: PositionType::Absolute,
             top: SCOREBOARD_TEXT_PADDING,
+            left: SCOREBOARD_TEXT_PADDING,
+            ..default()
+        }),
+        OnGameScreen,
+    ));
+
+    // Hpboard
+    commands.spawn((
+        HpboardUi,
+        TextBundle::from_sections([
+            TextSection::new(
+                "Hp: ",
+                TextStyle {
+                    font_size: SCOREBOARD_FONT_SIZE,
+                    color: TEXT_COLOR,
+                    ..default()
+                },
+            ),
+            TextSection::from_style(TextStyle {
+                font_size: SCOREBOARD_FONT_SIZE,
+                color: SCORE_COLOR,
+                ..default()
+            }),
+        ])
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            top: HPBOARD_TEXT_PADDING,
             left: SCOREBOARD_TEXT_PADDING,
             ..default()
         }),
@@ -447,6 +476,9 @@ struct Scoreboard {
 #[derive(Component)]
 struct ScoreboardUi;
 
+#[derive(Component)]
+struct HpboardUi;
+
 fn generate_enemy(
     mut commands: Commands,
     time: Res<Time>,
@@ -516,9 +548,14 @@ fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, time: Res<Time>
 fn update_scoreboard(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text, With<ScoreboardUi>>) {
     let mut text = query.single_mut();
     let mut display = scoreboard.score.to_string();
-    display.push_str(" | HP: ");
-    display.push_str(&scoreboard.hp.to_string());
+    // display.push_str(" | HP: ");
+    // display.push_str(&scoreboard.hp.to_string());
     text.sections[1].value = display;
+}
+
+fn update_hpboard(hpboard: Res<Scoreboard>, mut query: Query<&mut Text, With<HpboardUi>>) {
+    let mut text = query.single_mut();
+    text.sections[1].value = hpboard.hp.to_string();
 }
 
 fn shoot_bullets(
