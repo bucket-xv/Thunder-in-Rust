@@ -2,14 +2,19 @@
 
 mod config;
 pub mod esc_menu;
+pub mod gen_enemy;
 
 use super::{despawn_screen, GameState};
+use crate::Level;
 use bevy::{
     math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume},
     prelude::*,
     sprite::MaterialMesh2dBundle,
 };
-use rand::Rng;
+use bevy_rand::prelude::WyRand;
+use bevy_rand::resource::GlobalEntropy;
+// use rand::Rng;
+
 //use super::{DisplayQuality, Volume};
 
 // These constants are defined in `Transform` units.
@@ -38,7 +43,7 @@ const SCOREBOARD_FONT_SIZE: f32 = 40.0;
 const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
 const MENU_BUTTON_PADDING: Val = Val::Px(10.0);
 const PLAYER_PLANE_HP: u32 = 10;
-const ENEMY_PLANE_HP: u32 = 1;
+// const ENEMY_PLANE_HP: u32 = 1;
 
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 const PLANE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
@@ -100,7 +105,7 @@ struct Enemy;
 struct EnemyGenerateTimer(Timer);
 
 #[derive(Resource, Deref, DerefMut)]
-struct EnemyWaveIndex(u32);
+struct Wave(u32);
 
 const GAME_NORMAL_BUTTON: Color = Color::rgb(0.5, 0.5, 0.5); // Normal state: gray
 const GAME_HOVERED_BUTTON: Color = Color::rgb(0.6, 0.6, 0.6); // Hovered state: slightly lighter gray
@@ -164,7 +169,7 @@ fn game_setup(
         config::ENEMY_START_TIME,
         TimerMode::Once,
     )));
-    commands.insert_resource(EnemyWaveIndex(0));
+    commands.insert_resource(Wave(0));
 
     // commands.spawn(Camera2dBundle::default());
 
@@ -309,18 +314,24 @@ struct PlaneBundle {
     sprite_bundle: SpriteBundle,
 }
 
+#[derive(Bundle)]
+pub struct EnemyBundle {
+    plane_bundle: PlaneBundle,
+    enemy: Enemy,
+}
+
 #[derive(Component, Clone)]
 struct Weapon {
     weapon_type: WeaponType,
     bullet_config: BulletConfig,
     shoot_timer: Timer,
 }
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 enum WeaponType {
     GatlingGun,
     Laser,
 }
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 struct BulletConfig {
     color: Color,
     relative_position: Vec3,
@@ -440,42 +451,16 @@ fn generate_enemy(
     mut commands: Commands,
     time: Res<Time>,
     mut timer: ResMut<EnemyGenerateTimer>,
-    enemy_wave_index: ResMut<EnemyWaveIndex>,
+    wave: ResMut<Wave>,
+    level: Res<Level>,
+    rng: ResMut<GlobalEntropy<WyRand>>,
 ) {
-    let mut rng = rand::thread_rng();
-
     if timer.tick(time.delta()).just_finished() {
         timer.0.reset();
         timer.0.pause();
-        for _ in 0..config::ENEMY_GEN[enemy_wave_index.0 as usize].number_of_enemies {
-            let plane_x = rng.gen_range(
-                LEFT_WALL + GAP_BETWEEN_PLANE_AND_WALL..RIGHT_WALL - GAP_BETWEEN_PLANE_AND_WALL,
-            );
-            let plane_y = TOP_WALL - GAP_BETWEEN_PLANE_AND_WALL;
-            commands.spawn((
-                PlaneBundle {
-                    sprite_bundle: SpriteBundle {
-                        transform: Transform {
-                            translation: Vec3::new(plane_x, plane_y, 0.0),
-                            scale: PLANE_SIZE,
-                            ..default()
-                        },
-                        sprite: Sprite {
-                            color: PLANE_COLOR,
-                            ..default()
-                        },
-                        ..default()
-                    },
-                    plane: Plane,
-                    weapon: config::ENEMY_GEN[enemy_wave_index.0 as usize]
-                        .weapon
-                        .clone(),
-                    bullet_target: BulletTarget,
-                    on_game_screen: OnGameScreen,
-                    hp: HP(ENEMY_PLANE_HP),
-                },
-                Enemy,
-            ));
+        let vec = gen_enemy::gen_wave(level.0, wave.0, rng);
+        for plane in vec {
+            commands.spawn(plane);
         }
     }
 }
@@ -684,18 +669,19 @@ fn play_hitting_sound(
 fn check_for_next_wave(
     plane: Query<&Enemy>,
     mut timer: ResMut<EnemyGenerateTimer>,
-    mut enemy_wave_index: ResMut<EnemyWaveIndex>,
+    mut wave: ResMut<Wave>,
     mut game_state: ResMut<NextState<GameState>>,
+    level: Res<Level>,
 ) {
     if plane.iter().next().is_none() && timer.paused() {
         info!("All enemies are destroyed. Next wave is coming.");
-        enemy_wave_index.0 += 1;
+        wave.0 += 1;
 
         *timer = EnemyGenerateTimer(Timer::from_seconds(
             config::ENEMY_GEN_INTERVAL,
             TimerMode::Once,
         ));
-        if enemy_wave_index.0 as usize >= config::ENEMY_GEN.len() {
+        if wave.0 >= config::WaveConfig::get_wave_len(level.0) {
             game_state.set(GameState::Menu);
         }
     }

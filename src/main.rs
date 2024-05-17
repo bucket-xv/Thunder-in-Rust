@@ -7,7 +7,11 @@ mod menu;
 mod splash;
 
 use bevy::prelude::*;
+// use bevy_prng::WyRand;
+use bevy_rand::prelude::EntropyPlugin;
+use bevy_rand::prelude::WyRand;
 use bevy_spritesheet_animation::prelude::*;
+// use rand_core::RngCore;
 
 const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 
@@ -68,6 +72,8 @@ fn main() {
             game::esc_menu::esc_menu_plugin,
             level_splash::level_splash_plugin,
             game::game_plugin,
+            // This is a random generator plugin
+            EntropyPlugin::<WyRand>::default(),
         ))
         .run();
 }
