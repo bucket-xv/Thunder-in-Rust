@@ -165,7 +165,10 @@ fn game_setup(
     // mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    commands.insert_resource(Scoreboard { hp: 10, score: 0 });
+    commands.insert_resource(Scoreboard {
+        hp: PLAYER_PLANE_HP,
+        score: 0,
+    });
     commands.insert_resource(ClearColor(BACKGROUND_COLOR));
     commands.insert_resource(EnemyGenerateTimer(Timer::from_seconds(
         config::ENEMY_START_TIME,
