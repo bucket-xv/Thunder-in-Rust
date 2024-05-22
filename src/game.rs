@@ -547,7 +547,7 @@ fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, time: Res<Time>
 
 fn update_scoreboard(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text, With<ScoreboardUi>>) {
     let mut text = query.single_mut();
-    let mut display = scoreboard.score.to_string();
+    let display = scoreboard.score.to_string();
     // display.push_str(" | HP: ");
     // display.push_str(&scoreboard.hp.to_string());
     text.sections[1].value = display;
@@ -665,7 +665,7 @@ fn check_for_hitting(
                             }
                         }
                         if maybe_player.is_some() {
-                            scoreboard.hp -= 1;
+                            scoreboard.hp = scoreboard.hp.saturating_sub(1);
                         }
                         hitting_events.send(HittingEvent::HitPlane)
                     }
