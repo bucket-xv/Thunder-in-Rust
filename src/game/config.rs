@@ -8,9 +8,9 @@ use rand::{thread_rng, Rng};
 use crate::game::*;
 
 pub const ENEMY_PLANE_HP: u32 = 3;
-pub const ENEMY_START_TIME: f32 = 3.0;
-pub const ENEMY_GEN_INTERVAL: f32 = 5.0;
-const DEFAULT_BULLET_SPEED: f32 = 500.0;
+pub const ENEMY_START_TIME: f32 = 1.0;
+pub const ENEMY_GEN_INTERVAL: f32 = 2.0;
+const DEFAULT_BULLET_SPEED: f32 = 350.0;
 const PI: f32 = std::f32::consts::PI;
 
 #[derive(Clone, Copy)]
@@ -50,27 +50,29 @@ impl Default for PositionConfig {
 }
 
 #[derive(Clone, Copy)]
-pub enum BulletSpeedConfig {
+pub enum BulletDirectionConfig {
     #[allow(dead_code)]
-    Determinate(Vec2),
-    // Random range in the form of angle and the absolute Speed
-    Random(f32, Vec2),
+    Determinate(f32),
+    // Random range in the form of angle
+    Random(Vec2),
+    Trace,
 }
 
-impl BulletSpeedConfig {
-    pub fn gen(self) -> Vec2 {
+impl BulletDirectionConfig {
+    pub fn gen(self) -> BulletDirection {
         let mut rng = thread_rng();
         match self {
-            Self::Determinate(velocity) => velocity,
-            Self::Random(speed, angle_range) => {
-                speed * Vec2::from_angle(rng.gen_range(angle_range.x..angle_range.y))
+            Self::Determinate(angle) => BulletDirection::Fix(angle),
+            Self::Random(angle_range) => {
+                BulletDirection::Fix(rng.gen_range(angle_range.x..angle_range.y))
             }
+            Self::Trace => BulletDirection::Trace,
         }
     }
 }
-impl Default for BulletSpeedConfig {
+impl Default for BulletDirectionConfig {
     fn default() -> Self {
-        Self::Random(DEFAULT_BULLET_SPEED, Vec2::new(-3.0 * PI / 4.0, -PI / 4.0))
+        Self::Random(Vec2::new(-3.0 * PI / 4.0, -PI / 4.0))
     }
 }
 
@@ -82,7 +84,8 @@ pub struct EnemyConfig {
     pub weapon_type: WeaponType,
     pub bullet_color: Color,
     pub bullet_relative_position: Vec2,
-    pub bullet_speed: BulletSpeedConfig,
+    pub bullet_speed: f32,
+    pub bullet_direction: BulletDirectionConfig,
     pub bullet_diameter: f32,
     pub shooting_interval: f32,
 }
@@ -96,7 +99,8 @@ impl Default for EnemyConfig {
             hp: ENEMY_PLANE_HP,
             weapon_type: WeaponType::GatlingGun,
             bullet_color: BULLET_COLOR,
-            bullet_speed: BulletSpeedConfig::default(),
+            bullet_speed: DEFAULT_BULLET_SPEED,
+            bullet_direction: BulletDirectionConfig::default(),
             bullet_relative_position: -BULLET_STARTING_RELATIVE_POSITION.truncate(),
             bullet_diameter: BULLET_DIAMETER,
             shooting_interval: BULLET_SHOOTING_INTERVAL,
@@ -113,7 +117,7 @@ pub enum WaveConfig {
 impl WaveConfig {
     pub fn get_wave_len(level: u32) -> u32 {
         match level {
-            1 => 3,
+            1 => 2,
             2 => 4,
             3 => 5,
             4 => 5,
@@ -124,14 +128,45 @@ impl WaveConfig {
     pub fn get(level: u32, wave: u32) -> WaveConfig {
         match (level, wave) {
             //level 1
-            (1, 0) => WaveConfig::Duplicate(EnemyConfig::default(), 1),
-            (1, 1) => WaveConfig::Duplicate(EnemyConfig::default(), 2),
-            (1, 2) => WaveConfig::Duplicate(EnemyConfig::default(), 3),
+            (1, 0) => WaveConfig::Duplicate(
+                EnemyConfig {
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    hp: 1,
+                    ..default()
+                },
+                1,
+            ),
+            (1, 1) => WaveConfig::Duplicate(
+                EnemyConfig {
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    hp: 1,
+                    ..default()
+                },
+                2,
+            ),
 
             //level 2
-            (2, 0) => WaveConfig::Duplicate(EnemyConfig::default(), 1),
-            (2, 1) => WaveConfig::Duplicate(EnemyConfig::default(), 2),
-            (2, 2) => WaveConfig::Duplicate(EnemyConfig::default(), 3),
+            (2, 0) => WaveConfig::Duplicate(
+                EnemyConfig {
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    ..default()
+                },
+                1,
+            ),
+            (2, 1) => WaveConfig::Duplicate(
+                EnemyConfig {
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    ..default()
+                },
+                2,
+            ),
+            (2, 2) => WaveConfig::Duplicate(
+                EnemyConfig {
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    ..default()
+                },
+                3,
+            ),
             (2, 3) => WaveConfig::Duplicate(EnemyConfig::default(), 3),
 
             //level 3

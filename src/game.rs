@@ -2,17 +2,17 @@
 
 mod config;
 pub mod esc_menu;
-pub mod gen_enemy;
-
-use super::{despawn_screen, GameState};
-use crate::Level;
+pub mod generator;
+use super::{despawn_screen, GameState, Level};
+// use bevy::sprite::Material2d;
 use bevy::{
     math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume},
     prelude::*,
     sprite::MaterialMesh2dBundle,
 };
-use bevy_rand::prelude::WyRand;
-use bevy_rand::resource::GlobalEntropy;
+use core::f32::consts::PI;
+// use bevy_rand::prelude::WyRand;
+// use bevy_rand::resource::GlobalEntropy;
 // use rand::Rng;
 
 //use super::{DisplayQuality, Volume};
@@ -28,9 +28,11 @@ const PLANE_PADDING: f32 = 10.0;
 
 // We set the z-value of the bullet to 1 so it renders on top in the case of overlapping sprites.
 const BULLET_STARTING_RELATIVE_POSITION: Vec3 = Vec3::new(0.0, 50.0, 0.0);
-const BULLET_SHOOTING_INTERVAL: f32 = 0.2;
+const BULLET_SHOOTING_INTERVAL: f32 = 0.4;
 const BULLET_DIAMETER: f32 = 20.;
 const USER_BULLET_SPEED: f32 = 500.0;
+
+const DEFAULT_ENEMY_BULLET_DIRECTION: f32 = -PI / 2.0;
 
 const WALL_THICKNESS: f32 = 10.0;
 // x coordinates
@@ -70,6 +72,8 @@ pub fn game_plugin(app: &mut App) {
                 move_player_plane,
                 check_for_hitting,
                 play_hitting_sound,
+                update_scoreboard,
+                update_hpboard,
                 check_for_next_wave,
             )
                 // `chain`ing systems together runs them in order
@@ -78,14 +82,7 @@ pub fn game_plugin(app: &mut App) {
         )
         .add_systems(
             Update,
-            (
-                update_scoreboard,
-                update_hpboard,
-                button_system,
-                game_menu_action,
-                back_on_esc,
-            )
-                .run_if(in_state(GameState::Game)),
+            (button_system, game_menu_action, back_on_esc).run_if(in_state(GameState::Game)),
         )
         .add_systems(
             OnEnter(GameState::Menu),
@@ -164,9 +161,10 @@ fn game_setup(
     // mut meshes: ResMut<Assets<Mesh>>,
     // mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
+    level: Res<Level>,
 ) {
     commands.insert_resource(Scoreboard {
-        hp: PLAYER_PLANE_HP,
+        // hp: PLAYER_PLANE_HP,
         score: 0,
     });
     commands.insert_resource(ClearColor(BACKGROUND_COLOR));
@@ -183,39 +181,8 @@ fn game_setup(
     commands.insert_resource(HittingSound(hitting_sound));
 
     // Player Plane
-    let plane_y = BOTTOM_WALL + GAP_BETWEEN_PLANE_AND_WALL;
-
-    commands.spawn((
-        PlaneBundle {
-            plane: Plane,
-            sprite_bundle: SpriteBundle {
-                transform: Transform {
-                    translation: Vec3::new(0.0, plane_y, 0.0),
-                    scale: PLANE_SIZE,
-                    ..default()
-                },
-                sprite: Sprite {
-                    color: PLANE_COLOR,
-                    ..default()
-                },
-                ..default()
-            },
-            hp: HP(PLAYER_PLANE_HP),
-            on_game_screen: OnGameScreen,
-            weapon: Weapon {
-                weapon_type: WeaponType::GatlingGun,
-                bullet_config: BulletConfig {
-                    color: BULLET_COLOR,
-                    diameter: BULLET_DIAMETER,
-                    relative_position: BULLET_STARTING_RELATIVE_POSITION,
-                    speed: Vec2::new(0.0, USER_BULLET_SPEED),
-                },
-                shoot_timer: Timer::from_seconds(BULLET_SHOOTING_INTERVAL, TimerMode::Repeating),
-            },
-            bullet_target: BulletTarget,
-        },
-        Player,
-    ));
+    let user_plane = generator::gen_user_plane(level.0);
+    commands.spawn(user_plane);
 
     // Scoreboard
     commands.spawn((
@@ -345,7 +312,11 @@ struct PlaneBundle {
     bullet_target: BulletTarget,
     sprite_bundle: SpriteBundle,
 }
-
+#[derive(Bundle)]
+pub struct PlayerPlaneBundle {
+    plane_bundle: PlaneBundle,
+    player: Player,
+}
 #[derive(Bundle)]
 pub struct EnemyBundle {
     plane_bundle: PlaneBundle,
@@ -353,7 +324,7 @@ pub struct EnemyBundle {
 }
 
 #[derive(Component, Clone)]
-struct Weapon {
+pub struct Weapon {
     weapon_type: WeaponType,
     bullet_config: BulletConfig,
     shoot_timer: Timer,
@@ -368,7 +339,14 @@ struct BulletConfig {
     color: Color,
     relative_position: Vec3,
     diameter: f32,
-    speed: Vec2,
+    speed: f32,
+    direction: BulletDirection,
+}
+
+#[derive(Clone, Copy)]
+enum BulletDirection {
+    Fix(f32),
+    Trace,
 }
 
 #[derive(Component)]
@@ -472,7 +450,7 @@ impl WallBundle {
 // This resource tracks the game's score
 #[derive(Resource)]
 struct Scoreboard {
-    hp: u32,
+    // hp: u32,
     score: u32,
 }
 
@@ -488,12 +466,12 @@ fn generate_enemy(
     mut timer: ResMut<EnemyGenerateTimer>,
     wave: ResMut<Wave>,
     level: Res<Level>,
-    rng: ResMut<GlobalEntropy<WyRand>>,
+    // rng: ResMut<GlobalEntropy<WyRand>>,
 ) {
     if timer.tick(time.delta()).just_finished() {
         timer.0.reset();
         timer.0.pause();
-        let vec = gen_enemy::gen_wave(level.0, wave.0, rng);
+        let vec = generator::gen_wave(level.0, wave.0);
         for plane in vec {
             commands.spawn(plane);
         }
@@ -556,9 +534,16 @@ fn update_scoreboard(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text, Wi
     text.sections[1].value = display;
 }
 
-fn update_hpboard(hpboard: Res<Scoreboard>, mut query: Query<&mut Text, With<HpboardUi>>) {
+fn update_hpboard(
+    query_player_plane: Query<&HP, With<Player>>,
+    mut query: Query<&mut Text, With<HpboardUi>>,
+) {
     let mut text = query.single_mut();
-    text.sections[1].value = hpboard.hp.to_string();
+    let hp = match query_player_plane.is_empty() {
+        true => 0,
+        false => query_player_plane.single().0,
+    };
+    text.sections[1].value = hp.to_string();
 }
 
 fn shoot_bullets(
@@ -566,40 +551,30 @@ fn shoot_bullets(
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut weapon_query: Query<(&mut Weapon, &mut Transform), With<Plane>>,
+    mut enemy_weapon_query: Query<(&mut Weapon, &Transform), (With<Enemy>, Without<Player>)>,
+    mut player_weapon_query: Query<(&mut Weapon, &Transform), With<Player>>,
 ) {
-    for (mut weapon, weapon_transform) in &mut weapon_query {
+    let player_plane_loc = player_weapon_query.single().1.translation;
+    for (mut weapon, weapon_transform) in &mut enemy_weapon_query {
         if weapon.shoot_timer.tick(time.delta()).just_finished() {
-            let bullet_position =
-                weapon_transform.translation + weapon.bullet_config.relative_position;
-
-            match weapon.weapon_type {
-                WeaponType::GatlingGun => commands.spawn((
-                    MaterialMesh2dBundle {
-                        mesh: meshes.add(Circle::default()).into(),
-                        material: materials.add(weapon.bullet_config.color).into(),
-                        transform: Transform::from_translation(bullet_position)
-                            .with_scale(Vec2::splat(weapon.bullet_config.diameter).extend(1.)),
-                        ..default()
-                    },
-                    Velocity(weapon.bullet_config.speed),
-                    Bullet,
-                    OnGameScreen,
-                )),
-                WeaponType::Laser => {
-                    //TODO: Implement laser
-                    commands.spawn((
-                        MaterialMesh2dBundle {
-                            mesh: meshes.add(Circle::default()).into(),
-                            material: materials.add(weapon.bullet_config.color).into(),
-                            transform: Transform::from_translation(bullet_position)
-                                .with_scale(Vec2::splat(weapon.bullet_config.diameter).extend(1.)),
-                            ..default()
-                        },
-                        OnGameScreen,
-                    ))
-                }
-            };
+            commands.spawn(generator::gen_bullet(
+                &mut meshes,
+                &mut materials,
+                &weapon,
+                weapon_transform.translation,
+                player_plane_loc,
+            ));
+        }
+    }
+    for (mut weapon, weapon_transform) in &mut player_weapon_query {
+        if weapon.shoot_timer.tick(time.delta()).just_finished() {
+            commands.spawn(generator::gen_bullet(
+                &mut meshes,
+                &mut materials,
+                &weapon,
+                weapon_transform.translation,
+                player_plane_loc,
+            ));
         }
     }
 }
@@ -667,9 +642,9 @@ fn check_for_hitting(
                                 }
                             }
                         }
-                        if maybe_player.is_some() {
-                            scoreboard.hp = scoreboard.hp.saturating_sub(1);
-                        }
+                        // if maybe_player.is_some() {
+                        //     scoreboard.hp = scoreboard.hp.saturating_sub(1);
+                        // }
                         hitting_events.send(HittingEvent::HitPlane)
                     }
                     // Walls should not be despawned
