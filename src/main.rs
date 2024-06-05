@@ -24,6 +24,9 @@ enum GameState {
     LevelSplash,
     Game,
     Stopped,
+    Win,
+    Lose,
+    Completion,
     Init,
 }
 
@@ -72,6 +75,7 @@ fn main() {
             game::esc_menu::esc_menu_plugin,
             level_splash::level_splash_plugin,
             game::game_plugin,
+            game::win_lose_screen::win_lose_screen_plugin,
             // This is a random generator plugin
             EntropyPlugin::<WyRand>::default(),
         ))

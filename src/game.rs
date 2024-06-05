@@ -3,6 +3,7 @@
 mod config;
 pub mod esc_menu;
 pub mod generator;
+pub mod win_lose_screen;
 use super::{despawn_screen, GameState, Level};
 // use bevy::sprite::Material2d;
 use bevy::{
@@ -86,6 +87,18 @@ pub fn game_plugin(app: &mut App) {
         )
         .add_systems(
             OnEnter(GameState::Menu),
+            (despawn_screen::<OnGameScreen>, restore_background),
+        )
+        .add_systems(
+            OnEnter(GameState::Win),
+            (despawn_screen::<OnGameScreen>, restore_background),
+        )
+        .add_systems(
+            OnEnter(GameState::Lose),
+            (despawn_screen::<OnGameScreen>, restore_background),
+        )
+        .add_systems(
+            OnEnter(GameState::Completion),
             (despawn_screen::<OnGameScreen>, restore_background),
         );
 }
@@ -635,7 +648,7 @@ fn check_for_hitting(
                             match maybe_player {
                                 Some(_) => {
                                     // TODO: Defeat
-                                    game_state.set(GameState::Menu);
+                                    game_state.set(GameState::Lose);
                                 }
                                 None => {
                                     scoreboard.score += 1;
