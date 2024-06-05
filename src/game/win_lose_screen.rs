@@ -21,28 +21,20 @@ pub fn win_lose_screen_plugin(app: &mut App) {
         .add_systems(OnEnter(WinLoseScreenState::NextLevel), next_level)
         .add_systems(
             Update,
-            (win_lose_screen_action, button_system).run_if(in_state(WinLoseScreenState::WinScreen)),
+            (win_lose_screen_action, button_system).run_if(in_state(GameState::Win)),
         )
         .add_systems(
             Update,
-            (win_lose_screen_action, button_system)
-                .run_if(in_state(WinLoseScreenState::LoseScreen)),
+            (win_lose_screen_action, button_system).run_if(in_state(GameState::Lose)),
         )
         .add_systems(
             Update,
-            (win_lose_screen_action, button_system)
-                .run_if(in_state(WinLoseScreenState::CompletionScreen)),
+            (win_lose_screen_action, button_system).run_if(in_state(GameState::Completion)),
         )
+        .add_systems(OnExit(GameState::Win), despawn_screen::<OnWinScreen>)
+        .add_systems(OnExit(GameState::Lose), despawn_screen::<OnLoseScreen>)
         .add_systems(
-            OnExit(WinLoseScreenState::WinScreen),
-            despawn_screen::<OnWinScreen>,
-        )
-        .add_systems(
-            OnExit(WinLoseScreenState::LoseScreen),
-            despawn_screen::<OnLoseScreen>,
-        )
-        .add_systems(
-            OnExit(WinLoseScreenState::CompletionScreen),
+            OnExit(GameState::Completion),
             despawn_screen::<OnCompleteScreen>,
         );
 }
@@ -294,7 +286,7 @@ fn lose_screen_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 },
                 ..default()
             },
-            OnWinScreen,
+            OnLoseScreen,
         ))
         .with_children(|parent| {
             parent
@@ -430,7 +422,7 @@ fn completion_screen_setup(mut commands: Commands, asset_server: Res<AssetServer
                 },
                 ..default()
             },
-            OnWinScreen,
+            OnCompleteScreen,
         ))
         .with_children(|parent| {
             parent
@@ -556,15 +548,28 @@ fn win_lose_screen_action(
     }
 }
 
-fn back_to_main_menu(mut state: ResMut<NextState<GameState>>) {
+fn back_to_main_menu(
+    mut state: ResMut<NextState<GameState>>,
+    mut win_lose_screen_state: ResMut<NextState<WinLoseScreenState>>,
+) {
     state.set(GameState::Menu);
+    win_lose_screen_state.set(WinLoseScreenState::Disabled);
 }
 
-fn restart_level(mut state: ResMut<NextState<GameState>>) {
+fn restart_level(
+    mut state: ResMut<NextState<GameState>>,
+    mut win_lose_screen_state: ResMut<NextState<WinLoseScreenState>>,
+) {
     state.set(GameState::LevelSplash);
+    win_lose_screen_state.set(WinLoseScreenState::Disabled);
 }
 
-fn next_level(mut level_setting: ResMut<Level>, mut state: ResMut<NextState<GameState>>) {
+fn next_level(
+    mut level_setting: ResMut<Level>,
+    mut state: ResMut<NextState<GameState>>,
+    mut win_lose_screen_state: ResMut<NextState<WinLoseScreenState>>,
+) {
     *level_setting = Level(level_setting.0 + 1);
     state.set(GameState::LevelSplash);
+    win_lose_screen_state.set(WinLoseScreenState::Disabled);
 }

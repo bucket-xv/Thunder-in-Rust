@@ -710,7 +710,11 @@ fn check_for_next_wave(
             TimerMode::Once,
         ));
         if wave.0 >= config::WaveConfig::get_wave_len(level.0) {
-            game_state.set(GameState::Menu);
+            if level.0 == 5 {
+                game_state.set(GameState::Completion);
+            } else {
+                game_state.set(GameState::Win);
+            }
         }
     }
 }

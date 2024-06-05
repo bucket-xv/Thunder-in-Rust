@@ -235,10 +235,18 @@ fn esc_menu_action(
     }
 }
 
-fn back_to_main_menu(mut state: ResMut<NextState<GameState>>) {
+fn back_to_main_menu(
+    mut state: ResMut<NextState<GameState>>,
+    mut esc_menu_state: ResMut<NextState<EscMenuState>>,
+) {
     state.set(GameState::Menu);
+    esc_menu_state.set(EscMenuState::Disabled);
 }
 
-fn back_to_game(mut state: ResMut<NextState<GameState>>) {
+fn back_to_game(
+    mut state: ResMut<NextState<GameState>>,
+    mut esc_menu_state: ResMut<NextState<EscMenuState>>,
+) {
     state.set(GameState::Game);
+    esc_menu_state.set(EscMenuState::Disabled);
 }
