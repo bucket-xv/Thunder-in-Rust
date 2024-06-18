@@ -24,7 +24,10 @@ pub struct LaserRay;
 pub struct LaserAttackTimer(Timer);
 
 pub(super) fn setup_laser_attack_timer(mut commands: Commands) {
-    commands.insert_resource(LaserAttackTimer(Timer::from_seconds(0.5, TimerMode::Repeating)));
+    commands.insert_resource(LaserAttackTimer(Timer::from_seconds(
+        0.5,
+        TimerMode::Repeating,
+    )));
 }
 
 pub(super) fn shoot_laser(
