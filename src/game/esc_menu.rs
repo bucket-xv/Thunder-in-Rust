@@ -128,7 +128,7 @@ fn esc_main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     // Display the title of the menu
                     parent.spawn(
                         TextBundle::from_section(
-                            "GAME STOPPED",
+                            "GAME PAUSE",
                             TextStyle {
                                 font_size: 60.0,
                                 color: TEXT_COLOR,
