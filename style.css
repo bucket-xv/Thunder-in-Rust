@@ -1,3 +1,8 @@
+body {
+	/* width: 960px; */
+	margin: 0 auto;
+}
+
 canvas {
 	padding-left: 0;
 	padding-right: 0;
