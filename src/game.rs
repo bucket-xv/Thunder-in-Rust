@@ -60,7 +60,7 @@ const BULLET_COLOR: Color = Color::rgb(0.7, 0.3, 0.3);
 const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
 const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
-const MENU_COLOR: Color = Color::rgb(0.5, 1.0, 0.5);
+const MENU_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 
 // This plugin will contain the game. It will focus on the state `GameState::Game`
 pub fn game_plugin(app: &mut App) {

@@ -174,16 +174,14 @@ fn win_screen_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             WinLoseButtonAction::MainMenu,
                         ))
                         .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/right.png");
+                            let icon = asset_server.load("textures/Game Icons/home.png");
                             parent.spawn(ImageBundle {
                                 style: button_icon_style.clone(),
                                 image: UiImage::new(icon),
                                 ..default()
                             });
-                            parent.spawn(TextBundle::from_section(
-                                "Main Menu",
-                                button_text_style.clone(),
-                            ));
+                            parent
+                                .spawn(TextBundle::from_section("Home", button_text_style.clone()));
                         });
                     parent // Retry
                         .spawn((
@@ -195,7 +193,7 @@ fn win_screen_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             WinLoseButtonAction::Retry,
                         ))
                         .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/right.png");
+                            let icon = asset_server.load("textures/Game Icons/retry.png");
                             parent.spawn(ImageBundle {
                                 style: button_icon_style.clone(),
                                 image: UiImage::new(icon),
@@ -222,10 +220,8 @@ fn win_screen_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 image: UiImage::new(icon),
                                 ..default()
                             });
-                            parent.spawn(TextBundle::from_section(
-                                "Next Level",
-                                button_text_style.clone(),
-                            ));
+                            parent
+                                .spawn(TextBundle::from_section("Next", button_text_style.clone()));
                         });
                     parent // Quit
                         .spawn((
@@ -237,14 +233,14 @@ fn win_screen_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             WinLoseButtonAction::Quit,
                         ))
                         .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/right.png");
+                            let icon = asset_server.load("textures/Game Icons/exitRight.png");
                             parent.spawn(ImageBundle {
                                 style: button_icon_style.clone(),
                                 image: UiImage::new(icon),
                                 ..default()
                             });
                             parent
-                                .spawn(TextBundle::from_section("Quit", button_text_style.clone()));
+                                .spawn(TextBundle::from_section("Exit", button_text_style.clone()));
                         });
                 });
         });
@@ -331,16 +327,14 @@ fn lose_screen_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             WinLoseButtonAction::MainMenu,
                         ))
                         .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/right.png");
+                            let icon = asset_server.load("textures/Game Icons/home.png");
                             parent.spawn(ImageBundle {
                                 style: button_icon_style.clone(),
                                 image: UiImage::new(icon),
                                 ..default()
                             });
-                            parent.spawn(TextBundle::from_section(
-                                "Main Menu",
-                                button_text_style.clone(),
-                            ));
+                            parent
+                                .spawn(TextBundle::from_section("Home", button_text_style.clone()));
                         });
                     parent // Retry
                         .spawn((
@@ -352,7 +346,7 @@ fn lose_screen_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             WinLoseButtonAction::Retry,
                         ))
                         .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/right.png");
+                            let icon = asset_server.load("textures/Game Icons/retry.png");
                             parent.spawn(ImageBundle {
                                 style: button_icon_style.clone(),
                                 image: UiImage::new(icon),
@@ -373,14 +367,14 @@ fn lose_screen_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             WinLoseButtonAction::Quit,
                         ))
                         .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/right.png");
+                            let icon = asset_server.load("textures/Game Icons/exitRight.png");
                             parent.spawn(ImageBundle {
                                 style: button_icon_style.clone(),
                                 image: UiImage::new(icon),
                                 ..default()
                             });
                             parent
-                                .spawn(TextBundle::from_section("Quit", button_text_style.clone()));
+                                .spawn(TextBundle::from_section("Exit", button_text_style.clone()));
                         });
                 });
         });
@@ -466,38 +460,15 @@ fn completion_screen_setup(mut commands: Commands, asset_server: Res<AssetServer
                             WinLoseButtonAction::MainMenu,
                         ))
                         .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/right.png");
+                            let icon = asset_server.load("textures/Game Icons/home.png");
                             parent.spawn(ImageBundle {
                                 style: button_icon_style.clone(),
                                 image: UiImage::new(icon),
                                 ..default()
                             });
-                            parent.spawn(TextBundle::from_section(
-                                "Main Menu",
-                                button_text_style.clone(),
-                            ));
+                            parent
+                                .spawn(TextBundle::from_section("Home", button_text_style.clone()));
                         });
-                    // parent // Retry
-                    //     .spawn((
-                    //         ButtonBundle {
-                    //             style: button_style.clone(),
-                    //             background_color: NORMAL_BUTTON.into(),
-                    //             ..default()
-                    //         },
-                    //         WinLoseButtonAction::Retry,
-                    //     ))
-                    //     .with_children(|parent| {
-                    //         let icon = asset_server.load("textures/Game Icons/right.png");
-                    //         parent.spawn(ImageBundle {
-                    //             style: button_icon_style.clone(),
-                    //             image: UiImage::new(icon),
-                    //             ..default()
-                    //         });
-                    //         parent.spawn(TextBundle::from_section(
-                    //             "Retry Again",
-                    //             button_text_style.clone(),
-                    //         ));
-                    //     });
                     parent // Quit
                         .spawn((
                             ButtonBundle {
@@ -508,14 +479,14 @@ fn completion_screen_setup(mut commands: Commands, asset_server: Res<AssetServer
                             WinLoseButtonAction::Quit,
                         ))
                         .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/right.png");
+                            let icon = asset_server.load("textures/Game Icons/exitRight.png");
                             parent.spawn(ImageBundle {
                                 style: button_icon_style.clone(),
                                 image: UiImage::new(icon),
                                 ..default()
                             });
                             parent
-                                .spawn(TextBundle::from_section("Quit", button_text_style.clone()));
+                                .spawn(TextBundle::from_section("Exit", button_text_style.clone()));
                         });
                 });
         });

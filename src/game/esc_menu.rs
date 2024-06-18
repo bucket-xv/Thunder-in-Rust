@@ -155,16 +155,14 @@ fn esc_main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             EscMenuButtonAction::BackToMainMenu,
                         ))
                         .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/right.png");
+                            let icon = asset_server.load("textures/Game Icons/home.png");
                             parent.spawn(ImageBundle {
                                 style: button_icon_style.clone(),
                                 image: UiImage::new(icon),
                                 ..default()
                             });
-                            parent.spawn(TextBundle::from_section(
-                                "Main Menu",
-                                button_text_style.clone(),
-                            ));
+                            parent
+                                .spawn(TextBundle::from_section("Home", button_text_style.clone()));
                         });
                     parent // Back to Game
                         .spawn((
@@ -183,7 +181,7 @@ fn esc_main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 ..default()
                             });
                             parent.spawn(TextBundle::from_section(
-                                "Resume Game",
+                                "Continue",
                                 button_text_style.clone(),
                             ));
                         });
@@ -197,14 +195,14 @@ fn esc_main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             EscMenuButtonAction::Quit,
                         ))
                         .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/right.png");
+                            let icon = asset_server.load("textures/Game Icons/exitRight.png");
                             parent.spawn(ImageBundle {
                                 style: button_icon_style.clone(),
                                 image: UiImage::new(icon),
                                 ..default()
                             });
                             parent
-                                .spawn(TextBundle::from_section("Quit", button_text_style.clone()));
+                                .spawn(TextBundle::from_section("Exit", button_text_style.clone()));
                         });
                 });
         });
