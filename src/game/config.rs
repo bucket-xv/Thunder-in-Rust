@@ -81,7 +81,6 @@ pub struct EnemyConfig {
     pub scale: Vec2,
     pub color: Color,
     pub hp: u32,
-    pub weapon_type: WeaponType,
     pub bullet_color: Color,
     pub bullet_relative_position: Vec2,
     pub bullet_speed: f32,
@@ -97,7 +96,6 @@ impl Default for EnemyConfig {
             scale: PLANE_SIZE.truncate(),
             color: PLANE_COLOR,
             hp: ENEMY_PLANE_HP,
-            weapon_type: WeaponType::GatlingGun,
             bullet_color: BULLET_COLOR,
             bullet_speed: DEFAULT_BULLET_SPEED,
             bullet_direction: BulletDirectionConfig::default(),
@@ -139,7 +137,7 @@ impl WaveConfig {
             (1, 1) => WaveConfig::Duplicate(
                 EnemyConfig {
                     bullet_direction: BulletDirectionConfig::Trace,
-                    hp: 1,
+                    hp: 10,
                     ..default()
                 },
                 2,

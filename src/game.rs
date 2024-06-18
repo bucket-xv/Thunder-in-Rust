@@ -3,7 +3,12 @@
 mod config;
 pub mod esc_menu;
 pub mod generator;
+pub mod laser;
 pub mod win_lose_screen;
+use self::laser::{
+    check_for_laserray_hitting, clear_laser, setup_laser_attack_timer, shoot_laser, Laser,
+};
+
 use super::{despawn_screen, GameState, Level};
 // use bevy::sprite::Material2d;
 use bevy::{
@@ -52,7 +57,6 @@ const PLAYER_PLANE_HP: u32 = 20;
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 const PLANE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
 const BULLET_COLOR: Color = Color::rgb(0.7, 0.3, 0.3);
-// const BRICK_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
 const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
@@ -62,16 +66,20 @@ const MENU_COLOR: Color = Color::rgb(0.5, 1.0, 0.5);
 pub fn game_plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::Init), game_setup)
         .add_event::<HittingEvent>()
+        .add_systems(OnEnter(GameState::Game), setup_laser_attack_timer)
         // Add our gameplay simulation systems to the fixed timestep schedule
         // which runs at 64 Hz by default
         .add_systems(
             FixedUpdate,
             (
                 generate_enemy,
-                shoot_bullets,
+                shoot_gun,
                 apply_velocity,
+                clear_laser,
                 move_player_plane,
-                check_for_hitting,
+                shoot_laser,
+                check_for_bullet_hitting,
+                check_for_laserray_hitting,
                 play_hitting_sound,
                 update_scoreboard,
                 update_hpboard,
@@ -319,17 +327,20 @@ struct Plane;
 #[derive(Bundle)]
 struct PlaneBundle {
     plane: Plane,
-    weapon: Weapon,
+    gun: GatlingGun,
+    laser: Laser,
     on_game_screen: OnGameScreen,
     hp: HP,
-    bullet_target: BulletTarget,
+    bullet_target: AttackTarget,
     sprite_bundle: SpriteBundle,
 }
+
 #[derive(Bundle)]
 pub struct PlayerPlaneBundle {
     plane_bundle: PlaneBundle,
     player: Player,
 }
+
 #[derive(Bundle)]
 pub struct EnemyBundle {
     plane_bundle: PlaneBundle,
@@ -337,16 +348,11 @@ pub struct EnemyBundle {
 }
 
 #[derive(Component, Clone)]
-pub struct Weapon {
-    weapon_type: WeaponType,
+pub struct GatlingGun {
     bullet_config: BulletConfig,
     shoot_timer: Timer,
 }
-#[derive(Clone, Copy)]
-enum WeaponType {
-    GatlingGun,
-    Laser,
-}
+
 #[derive(Clone, Copy)]
 struct BulletConfig {
     color: Color,
@@ -367,7 +373,7 @@ struct Bullet;
 
 // Bullet will despawn when hitting the entity with the BulletTarget component
 #[derive(Component)]
-struct BulletTarget;
+struct AttackTarget;
 
 /// HP will decrease when hitted with Bullet
 /// When HP is 0, the entity with HP component will be despawned
@@ -394,7 +400,7 @@ struct WallBundle {
     // You can nest bundles inside of other bundles like this
     // Allowing you to compose their functionality
     sprite_bundle: SpriteBundle,
-    collider: BulletTarget,
+    collider: AttackTarget,
 }
 
 /// Which side of the arena is this wall located on?
@@ -455,7 +461,7 @@ impl WallBundle {
                 },
                 ..default()
             },
-            collider: BulletTarget,
+            collider: AttackTarget,
         }
     }
 }
@@ -559,33 +565,33 @@ fn update_hpboard(
     text.sections[1].value = hp.to_string();
 }
 
-fn shoot_bullets(
+fn shoot_gun(
     mut commands: Commands,
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut enemy_weapon_query: Query<(&mut Weapon, &Transform), (With<Enemy>, Without<Player>)>,
-    mut player_weapon_query: Query<(&mut Weapon, &Transform), With<Player>>,
+    mut enemy_gun_query: Query<(&mut GatlingGun, &Transform), (With<Enemy>, Without<Player>)>,
+    mut player_gun_query: Query<(&mut GatlingGun, &Transform), With<Player>>,
 ) {
-    let player_plane_loc = player_weapon_query.single().1.translation;
-    for (mut weapon, weapon_transform) in &mut enemy_weapon_query {
-        if weapon.shoot_timer.tick(time.delta()).just_finished() {
+    let player_plane_loc = player_gun_query.single().1.translation;
+    for (mut gun, gun_transform) in &mut enemy_gun_query {
+        if gun.shoot_timer.tick(time.delta()).just_finished() {
             commands.spawn(generator::gen_bullet(
                 &mut meshes,
                 &mut materials,
-                &weapon,
-                weapon_transform.translation,
+                &gun,
+                gun_transform.translation,
                 player_plane_loc,
             ));
         }
     }
-    for (mut weapon, weapon_transform) in &mut player_weapon_query {
-        if weapon.shoot_timer.tick(time.delta()).just_finished() {
+    for (mut gun, gun_transform) in &mut player_gun_query {
+        if gun.shoot_timer.tick(time.delta()).just_finished() {
             commands.spawn(generator::gen_bullet(
                 &mut meshes,
                 &mut materials,
-                &weapon,
-                weapon_transform.translation,
+                &gun,
+                gun_transform.translation,
                 player_plane_loc,
             ));
         }
@@ -612,20 +618,20 @@ fn restore_background(mut commands: Commands) {
     commands.insert_resource(ClearColor::default());
 }
 
-fn check_for_hitting(
+fn check_for_bullet_hitting(
     mut commands: Commands,
     mut scoreboard: ResMut<Scoreboard>,
     bullet_query: Query<(Entity, &Transform), With<Bullet>>,
-    mut bullet_target_query: Query<
+    mut attack_target_query: Query<
         (Entity, &Transform, Option<&mut HP>, Option<&Player>),
-        With<BulletTarget>,
+        With<AttackTarget>,
     >,
     mut hitting_events: EventWriter<HittingEvent>,
     mut game_state: ResMut<NextState<GameState>>,
 ) {
     for (bullet_entity, bullet_transform) in bullet_query.iter() {
         let mut despawn_bullet = false;
-        for (target_entity, transform, maybe_hp, maybe_player) in &mut bullet_target_query {
+        for (target_entity, transform, maybe_hp, maybe_player) in &mut attack_target_query {
             let bullet_shape = BoundingCircle::new(
                 bullet_transform.translation.truncate(),
                 BULLET_DIAMETER / 2.,

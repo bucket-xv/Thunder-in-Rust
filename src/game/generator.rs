@@ -27,8 +27,7 @@ pub fn gen_user_plane(level: u32) -> PlayerPlaneBundle {
                 _ => PLAYER_PLANE_HP,
             }),
             on_game_screen: OnGameScreen,
-            weapon: Weapon {
-                weapon_type: WeaponType::GatlingGun,
+            gun: GatlingGun {
                 bullet_config: BulletConfig {
                     color: BULLET_COLOR,
                     diameter: BULLET_DIAMETER,
@@ -36,9 +35,13 @@ pub fn gen_user_plane(level: u32) -> PlayerPlaneBundle {
                     speed: USER_BULLET_SPEED,
                     direction: BulletDirection::Fix(PI / 2.0),
                 },
-                shoot_timer: Timer::from_seconds(BULLET_SHOOTING_INTERVAL, TimerMode::Repeating),
+                shoot_timer: Timer::from_seconds(100.0, TimerMode::Repeating),
             },
-            bullet_target: BulletTarget,
+            laser: Laser {
+                enabled: true,
+                duration_timer: Some(Timer::from_seconds(laser::LASER_DURATION, TimerMode::Once)),
+            },
+            bullet_target: AttackTarget,
         },
         player: Player,
     }
@@ -81,8 +84,7 @@ fn gen_enemy(
                 ..default()
             },
             plane: Plane,
-            weapon: Weapon {
-                weapon_type: enemy_config.weapon_type,
+            gun: GatlingGun {
                 bullet_config: BulletConfig {
                     color: enemy_config.color,
                     relative_position: enemy_config.bullet_relative_position.extend(0.0),
@@ -95,7 +97,11 @@ fn gen_enemy(
                     TimerMode::Repeating,
                 ),
             },
-            bullet_target: BulletTarget,
+            laser: Laser {
+                enabled: false,
+                duration_timer: None,
+            },
+            bullet_target: AttackTarget,
             on_game_screen: OnGameScreen,
             hp: HP(enemy_config.hp),
         },
@@ -106,37 +112,32 @@ fn gen_enemy(
 pub fn gen_bullet(
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<ColorMaterial>>,
-    weapon: &Weapon,
+    gun: &GatlingGun,
     weapon_location: Vec3,
     player_plane_location: Vec3,
 ) -> impl Bundle {
-    let bullet_position = weapon_location + weapon.bullet_config.relative_position;
-    match weapon.weapon_type {
-        WeaponType::GatlingGun => (
-            MaterialMesh2dBundle {
-                mesh: meshes.add(Circle::default()).into(),
-                material: materials.add(weapon.bullet_config.color).into(),
-                transform: Transform::from_translation(bullet_position)
-                    .with_scale(Vec2::splat(weapon.bullet_config.diameter).extend(1.)),
-                ..default()
-            },
-            match weapon.bullet_config.direction {
-                BulletDirection::Fix(angle) => {
-                    Velocity(Vec2::from_angle(angle) * weapon.bullet_config.speed)
-                }
-                BulletDirection::Trace => {
-                    let direction = (player_plane_location - bullet_position)
-                        .truncate()
-                        .try_normalize()
-                        .unwrap_or(Vec2::from_angle(DEFAULT_ENEMY_BULLET_DIRECTION));
-                    Velocity(direction * weapon.bullet_config.speed)
-                }
-            },
-            Bullet,
-            OnGameScreen,
-        ),
-        WeaponType::Laser => {
-            unimplemented!("Laser is not implemented yet")
-        }
-    }
+    let bullet_position = weapon_location + gun.bullet_config.relative_position;
+    return (
+        MaterialMesh2dBundle {
+            mesh: meshes.add(Circle::default()).into(),
+            material: materials.add(gun.bullet_config.color).into(),
+            transform: Transform::from_translation(bullet_position)
+                .with_scale(Vec2::splat(gun.bullet_config.diameter).extend(1.)),
+            ..default()
+        },
+        match gun.bullet_config.direction {
+            BulletDirection::Fix(angle) => {
+                Velocity(Vec2::from_angle(angle) * gun.bullet_config.speed)
+            }
+            BulletDirection::Trace => {
+                let direction = (player_plane_location - bullet_position)
+                    .truncate()
+                    .try_normalize()
+                    .unwrap_or(Vec2::from_angle(DEFAULT_ENEMY_BULLET_DIRECTION));
+                Velocity(direction * gun.bullet_config.speed)
+            }
+        },
+        Bullet,
+        OnGameScreen,
+    );
 }
