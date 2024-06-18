@@ -2,5 +2,5 @@
 .DS_Store
 .vscode
 .cargo
-out
+/out
 Makefile
