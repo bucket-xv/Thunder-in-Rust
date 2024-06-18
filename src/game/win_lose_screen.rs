@@ -202,7 +202,7 @@ fn win_screen_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 ..default()
                             });
                             parent.spawn(TextBundle::from_section(
-                                "Retry Again",
+                                "Retry",
                                 button_text_style.clone(),
                             ));
                         });
@@ -359,7 +359,7 @@ fn lose_screen_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 ..default()
                             });
                             parent.spawn(TextBundle::from_section(
-                                "Retry Again",
+                                "Retry",
                                 button_text_style.clone(),
                             ));
                         });
