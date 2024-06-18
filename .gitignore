@@ -1,6 +1,6 @@
 /target
 .DS_Store
 .vscode
-.gitignore
-.*
+.cargo
+out
 Makefile
