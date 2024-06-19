@@ -35,7 +35,7 @@ pub fn gen_user_plane(level: u32) -> PlayerPlaneBundle {
                     speed: USER_BULLET_SPEED,
                     direction: BulletDirection::Fix(PI / 2.0),
                 },
-                shoot_timer: Timer::from_seconds(100.0, TimerMode::Repeating),
+                shoot_timer: Timer::from_seconds(BULLET_SHOOTING_INTERVAL, TimerMode::Repeating),
             },
             laser: Laser {
                 enabled: true,
