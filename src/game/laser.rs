@@ -25,12 +25,13 @@ pub struct LaserAttackTimer(Timer);
 
 pub(super) fn setup_laser_attack_timer(mut commands: Commands) {
     commands.insert_resource(LaserAttackTimer(Timer::from_seconds(
-        0.5,
+        0.1,
         TimerMode::Repeating,
     )));
 }
 
 pub(super) fn shoot_laser(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -38,7 +39,10 @@ pub(super) fn shoot_laser(
     mut laser_query: Query<(&mut Laser, &Transform), With<Player>>,
 ) {
     for (mut laser, transform) in &mut laser_query {
-        if laser.enabled && !laser.duration_timer.as_mut().unwrap().finished() {
+        if laser.enabled
+            && !laser.duration_timer.as_mut().unwrap().finished()
+            && keyboard_input.pressed(KeyCode::KeyL)
+        {
             laser.duration_timer.as_mut().unwrap().tick(time.delta());
             commands.spawn(gen_laserray(
                 &mut meshes,
