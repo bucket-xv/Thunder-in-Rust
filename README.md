@@ -6,7 +6,7 @@ This is a game developed by the Rust game engine Bevy. This game is a redevelopm
 
 Visit this website to play the game: [Thunder](https://bucket-xv.github.io/Thunder-in-Rust/).
 
-Doing so will pull about 20MB of game data from the repository, so please be patient.
+Doing so will pull about 40MB of game data from the repository, so please be patient.
 
 Note that `Quit` option is invalid in the web page version.
 
@@ -32,6 +32,20 @@ git clone https://github.com/bucket-xv/Thunder-in-Rust.git
 
 ```bash
 cargo run --release
+```
+
+### Generate the web version
+
+If you are using Windows, run the following command:
+
+```bash
+make win-web
+```
+
+If you are using Linux, run the following command:
+
+```bash
+make linux-web
 ```
 
 ## How to play
