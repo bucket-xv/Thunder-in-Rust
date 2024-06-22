@@ -6,8 +6,8 @@ pub mod generator;
 pub mod laser;
 pub mod win_lose_screen;
 use self::laser::{
-    check_for_laserray_hitting, clear_laser, setup_laser_attack_timer, shoot_laser,
-    update_laserboard, Laser, LaserBoardUi,
+    check_for_laserray_hitting, clear_laser, setup_laser, shoot_laser, update_laserboard, Laser,
+    LaserBoardUi,
 };
 
 use super::{despawn_screen, GameState, Level};
@@ -18,6 +18,7 @@ use bevy::{
     sprite::MaterialMesh2dBundle,
 };
 use core::f32::consts::PI;
+use laser::{add_laser_star, remove_laser_star};
 // use bevy_rand::prelude::WyRand;
 // use bevy_rand::resource::GlobalEntropy;
 // use rand::Rng;
@@ -68,7 +69,7 @@ const MENU_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 pub fn game_plugin(app: &mut App) {
     app.add_systems(OnEnter(GameState::Init), game_setup)
         .add_event::<HittingEvent>()
-        .add_systems(OnEnter(GameState::Game), setup_laser_attack_timer)
+        .add_systems(OnEnter(GameState::Game), setup_laser)
         // Add our gameplay simulation systems to the fixed timestep schedule
         // which runs at 64 Hz by default
         .add_systems(
@@ -87,6 +88,8 @@ pub fn game_plugin(app: &mut App) {
                 update_hpboard,
                 update_laserboard,
                 check_for_next_wave,
+                add_laser_star,
+                remove_laser_star,
             )
                 // `chain`ing systems together runs them in order
                 .chain()

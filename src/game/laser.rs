@@ -5,11 +5,13 @@ use bevy::{
 };
 
 use super::{
-    AttackTarget, HittingEvent, OnGameScreen, Player, Scoreboard, HP, TOP_WALL, WALL_THICKNESS,
+    config::PositionConfig, AttackTarget, HittingEvent, OnGameScreen, Player, Scoreboard, HP,
+    TOP_WALL, WALL_THICKNESS,
 };
 
 pub(super) const LASER_DURATION: f32 = 10.0;
 pub(super) const LASER_COLOR: Color = Color::rgba(1.0, 0.7, 0., 0.80);
+const LASER_STAR_SIZE: Vec3 = Vec3::new(1.5, 1.5, 0.);
 
 #[derive(Component)]
 pub(super) struct Laser {
@@ -26,10 +28,27 @@ pub(super) struct LaserRay;
 #[derive(Resource)]
 pub(super) struct LaserAttackTimer(Timer);
 
-pub(super) fn setup_laser_attack_timer(mut commands: Commands) {
+#[derive(Component)]
+pub(super) struct LaserStar;
+
+#[derive(Resource)]
+pub(super) struct LaserStarGenerateTimer(Timer);
+
+#[derive(Resource)]
+pub(super) struct LaserStarVanishTimer(Timer);
+
+pub(super) fn setup_laser(mut commands: Commands) {
     commands.insert_resource(LaserAttackTimer(Timer::from_seconds(
         0.1,
         TimerMode::Repeating,
+    )));
+    commands.insert_resource(LaserStarGenerateTimer(Timer::from_seconds(
+        2.0,
+        TimerMode::Repeating,
+    )));
+    commands.insert_resource(LaserStarVanishTimer(Timer::from_seconds(
+        1.0,
+        TimerMode::Once,
     )));
 }
 
@@ -145,7 +164,59 @@ pub(super) fn update_laserboard(
         text.sections[1].value = "N/A".to_string();
     } else {
         let timer = laser.duration_timer.as_ref().unwrap();
-        let remain = (timer.fraction_remaining() * 100.0).floor();
-        text.sections[1].value = remain.to_string();
+        let remain = (timer.remaining_secs()).floor();
+        text.sections[1].value = format!("{}s", remain);
+    }
+}
+
+fn gen_laser_star(asset_server: Res<AssetServer>) -> impl Bundle {
+    (
+        SpriteBundle {
+            texture: asset_server.load("textures/entities/star.fill.png"),
+            transform: Transform {
+                translation: PositionConfig::default().gen().extend(0.0),
+                scale: LASER_STAR_SIZE,
+                ..default()
+            },
+            ..default()
+        },
+        LaserStar,
+        OnGameScreen,
+    )
+}
+
+pub(super) fn add_laser_star(
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+    laser: Query<&Laser, With<Player>>,
+    time: Res<Time>,
+    mut laser_star_generate_timer: ResMut<LaserStarGenerateTimer>,
+    mut laser_star_vanish_timer: ResMut<LaserStarVanishTimer>,
+) {
+    if !laser.single().enabled {
+        return;
+    }
+    if !laser_star_generate_timer
+        .0
+        .tick(time.delta())
+        .just_finished()
+    {
+        return;
+    }
+    commands.spawn(gen_laser_star(asset_server));
+    laser_star_vanish_timer.0.reset();
+}
+
+pub(super) fn remove_laser_star(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut laser_star_vanish_timer: ResMut<LaserStarVanishTimer>,
+    laser_star_query: Query<Entity, With<LaserStar>>,
+) {
+    if !laser_star_vanish_timer.0.tick(time.delta()).just_finished() {
+        return;
+    }
+    for entity in laser_star_query.iter() {
+        commands.entity(entity).despawn();
     }
 }
