@@ -7,6 +7,12 @@ use crate::Level;
 
 use super::{despawn_screen, DisplayQuality, GameState, Volume, TEXT_COLOR};
 
+// Const strings for the help screen
+pub const HELP_SCREEN: &str = "1. Use the arrow keys or w, a, s, and d to move the player.\n\
+        2. Use l to shoot lasers.\n\
+        3. Avoid being shot by the enemy and get the highest score possible.\n\
+        4. There are 5 levels to play. Good Luck!";
+
 // This plugin manages the menu, with 5 different screens:
 // - a main menu with "New Game", "Settings", "Quit"
 // - a settings menu with two submenus and a back button
@@ -63,8 +69,7 @@ pub fn menu_plugin(app: &mut App) {
             (menu_action, button_system).run_if(in_state(GameState::Menu)),
         )
         .add_systems(OnEnter(MenuState::Help), help_screen_setup)
-        .add_systems(OnExit(MenuState::Help), despawn_screen::<OnHelpMenuScreen>);
-    // .add_systems(Update, setting_button::<>)
+        .add_systems(OnExit(MenuState::Help), despawn_screen::<OnHelpScreen>);
 }
 
 // State used for the current menu screen
@@ -100,7 +105,7 @@ struct OnDisplaySettingsMenuScreen;
 struct OnSoundSettingsMenuScreen;
 
 #[derive(Component)]
-struct OnHelpMenuScreen;
+struct OnHelpScreen;
 
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
@@ -732,7 +737,7 @@ fn help_screen_setup(mut commands: Commands) {
                 },
                 ..default()
             },
-            OnHelpMenuScreen,
+            OnHelpScreen,
         ))
         .with_children(|parent| {
             parent
@@ -767,10 +772,7 @@ fn help_screen_setup(mut commands: Commands) {
                     );
                     parent.spawn(
                         TextBundle::from_section(
-                            "1. Use the arrow keys or w, a, s, and d to move the player.\n\
-        2. Use l to shoot lasers.\n\
-        3. Avoid being shot by the enemy and get the highest score possible.\n\
-        4. There are 5 levels to play. Good Luck!",
+                            HELP_SCREEN,
                             TextStyle {
                                 font_size: 25.0,
                                 color: TEXT_COLOR,
@@ -783,7 +785,7 @@ fn help_screen_setup(mut commands: Commands) {
                             flex_wrap: FlexWrap::Wrap,
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
-                            border: UiRect::all(Val::Px(2.0)), // Add border
+                            border: UiRect::all(Val::Px(2.0)),
                             ..default()
                         }),
                     );
