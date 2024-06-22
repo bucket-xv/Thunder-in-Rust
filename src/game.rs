@@ -6,7 +6,8 @@ pub mod generator;
 pub mod laser;
 pub mod win_lose_screen;
 use self::laser::{
-    check_for_laserray_hitting, clear_laser, setup_laser_attack_timer, shoot_laser, Laser,
+    check_for_laserray_hitting, clear_laser, setup_laser_attack_timer, shoot_laser,
+    update_laserboard, Laser, LaserBoardUi,
 };
 
 use super::{despawn_screen, GameState, Level};
@@ -51,6 +52,7 @@ const TOP_WALL: f32 = 300.;
 const SCOREBOARD_FONT_SIZE: f32 = 40.0;
 const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
 const HPBOARD_TEXT_PADDING: Val = Val::Px(50.0);
+const LASERBOARD_TEXT_PADDING: Val = Val::Px(95.0);
 const MENU_BUTTON_PADDING: Val = Val::Px(10.0);
 const PLAYER_PLANE_HP: u32 = 20;
 
@@ -83,6 +85,7 @@ pub fn game_plugin(app: &mut App) {
                 play_hitting_sound,
                 update_scoreboard,
                 update_hpboard,
+                update_laserboard,
                 check_for_next_wave,
             )
                 // `chain`ing systems together runs them in order
@@ -253,6 +256,33 @@ fn game_setup(
         .with_style(Style {
             position_type: PositionType::Absolute,
             top: HPBOARD_TEXT_PADDING,
+            left: SCOREBOARD_TEXT_PADDING,
+            ..default()
+        }),
+        OnGameScreen,
+    ));
+
+    // Laserboard
+    commands.spawn((
+        LaserBoardUi,
+        TextBundle::from_sections([
+            TextSection::new(
+                "Laser: ",
+                TextStyle {
+                    font_size: SCOREBOARD_FONT_SIZE,
+                    color: TEXT_COLOR,
+                    ..default()
+                },
+            ),
+            TextSection::from_style(TextStyle {
+                font_size: SCOREBOARD_FONT_SIZE,
+                color: SCORE_COLOR,
+                ..default()
+            }),
+        ])
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            top: LASERBOARD_TEXT_PADDING,
             left: SCOREBOARD_TEXT_PADDING,
             ..default()
         }),
