@@ -2799,18 +2799,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43d84d1d7a6ac92673717f9f6d1518374ef257669c24ebc5ac25d5033828be58"
 
 [[package]]
-name = "project"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy_rand",
- "bevy_spritesheet_animation",
- "once_cell",
- "rand",
- "rand_core",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3230,6 +3218,18 @@ checksum = "8b9ef9bad013ada3808854ceac7b46812a6465ba368859a37e2100283d2d719c"
 dependencies = [
  "cfg-if",
  "once_cell",
+]
+
+[[package]]
+name = "thunder"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_rand",
+ "bevy_spritesheet_animation",
+ "once_cell",
+ "rand",
+ "rand_core",
 ]
 
 [[package]]
