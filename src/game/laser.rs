@@ -1,12 +1,12 @@
 use bevy::{
-    math::bounding::{Aabb2d, IntersectsVolume},
+    math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume},
     prelude::*,
     sprite::MaterialMesh2dBundle,
 };
 
 use super::{
-    config::PositionConfig, AttackTarget, HittingEvent, OnGameScreen, Player, Scoreboard, HP,
-    TOP_WALL, WALL_THICKNESS,
+    config::PositionConfig, AttackTarget, HittingEvent, OnGameScreen, Player, Scoreboard,
+    BOTTOM_WALL, GAP_BETWEEN_PLANE_AND_WALL, HP, LEFT_WALL, RIGHT_WALL, TOP_WALL, WALL_THICKNESS,
 };
 
 pub(super) const LASER_DURATION: f32 = 10.0;
@@ -43,11 +43,11 @@ pub(super) fn setup_laser(mut commands: Commands) {
         TimerMode::Repeating,
     )));
     commands.insert_resource(LaserStarGenerateTimer(Timer::from_seconds(
-        2.0,
+        8.0,
         TimerMode::Repeating,
     )));
     commands.insert_resource(LaserStarVanishTimer(Timer::from_seconds(
-        1.0,
+        4.0,
         TimerMode::Once,
     )));
 }
@@ -159,6 +159,10 @@ pub(super) fn update_laserboard(
     mut query: Query<&mut Text, With<LaserBoardUi>>,
 ) {
     let mut text = query.single_mut();
+    if laser.is_empty() {
+        text.sections[1].value = "N/A".to_string();
+        return;
+    }
     let laser = laser.single();
     if laser.enabled == false {
         text.sections[1].value = "N/A".to_string();
@@ -174,7 +178,18 @@ fn gen_laser_star(asset_server: Res<AssetServer>) -> impl Bundle {
         SpriteBundle {
             texture: asset_server.load("textures/entities/star.fill.png"),
             transform: Transform {
-                translation: PositionConfig::default().gen().extend(0.0),
+                translation: PositionConfig::Random(
+                    Vec2::new(
+                        LEFT_WALL + GAP_BETWEEN_PLANE_AND_WALL,
+                        RIGHT_WALL - GAP_BETWEEN_PLANE_AND_WALL,
+                    ),
+                    Vec2::new(
+                        BOTTOM_WALL + GAP_BETWEEN_PLANE_AND_WALL,
+                        TOP_WALL - GAP_BETWEEN_PLANE_AND_WALL,
+                    ),
+                )
+                .gen()
+                .extend(0.0),
                 scale: LASER_STAR_SIZE,
                 ..default()
             },
@@ -218,5 +233,33 @@ pub(super) fn remove_laser_star(
     }
     for entity in laser_star_query.iter() {
         commands.entity(entity).despawn();
+    }
+}
+
+pub(super) fn check_for_laser_star_capture(
+    mut commands: Commands,
+    mut hitting_events: EventWriter<HittingEvent>,
+    laser_star_query: Query<(Entity, &Transform), With<LaserStar>>,
+    mut player_plane_query: Query<(&Transform, &mut Laser), With<Player>>,
+) {
+    if laser_star_query.is_empty() {
+        return;
+    }
+    if player_plane_query.is_empty() {
+        info!("Player plane not found!!!!!!!!");
+        return;
+    }
+    let (laser_star_entity, laser_star_transform) = laser_star_query.single();
+    let (player_transform, mut player_laser) = player_plane_query.single_mut();
+    let player_shape = Aabb2d::new(
+        player_transform.translation.truncate(),
+        player_transform.scale.truncate() / 2.,
+    );
+    let laser_star_shape = BoundingCircle::new(laser_star_transform.translation.truncate(), 20.0);
+    if player_shape.intersects(&laser_star_shape) {
+        commands.entity(laser_star_entity).despawn();
+        player_laser.enabled = true;
+        player_laser.duration_timer = Some(Timer::from_seconds(LASER_DURATION, TimerMode::Once));
+        hitting_events.send(HittingEvent::HitLaserStar);
     }
 }

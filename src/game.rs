@@ -6,8 +6,8 @@ pub mod generator;
 pub mod laser;
 pub mod win_lose_screen;
 use self::laser::{
-    check_for_laserray_hitting, clear_laser, setup_laser, shoot_laser, update_laserboard, Laser,
-    LaserBoardUi,
+    check_for_laser_star_capture, check_for_laserray_hitting, clear_laser, setup_laser,
+    shoot_laser, update_laserboard, Laser, LaserBoardUi,
 };
 
 use super::{despawn_screen, GameState, Level};
@@ -83,6 +83,7 @@ pub fn game_plugin(app: &mut App) {
                 shoot_laser,
                 check_for_bullet_hitting,
                 check_for_laserray_hitting,
+                check_for_laser_star_capture,
                 play_hitting_sound,
                 update_scoreboard,
                 update_hpboard,
@@ -420,6 +421,7 @@ struct Velocity(Vec2);
 enum HittingEvent {
     HitWall,
     HitPlane,
+    HitLaserStar,
 }
 #[derive(Component)]
 struct Brick;
@@ -727,6 +729,14 @@ fn play_hitting_sound(
                 break;
             }
             HittingEvent::HitWall => {}
+            HittingEvent::HitLaserStar => {
+                commands.spawn(AudioBundle {
+                    source: sound.0.clone(),
+                    // auto-despawn the entity when playback finishes
+                    settings: PlaybackSettings::DESPAWN,
+                });
+                break;
+            }
         }
     }
     // This prevents events staying active on the next frame.
