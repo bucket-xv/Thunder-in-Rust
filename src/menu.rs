@@ -61,7 +61,10 @@ pub fn menu_plugin(app: &mut App) {
         .add_systems(
             Update,
             (menu_action, button_system).run_if(in_state(GameState::Menu)),
-        );
+        )
+        .add_systems(OnEnter(MenuState::Help), help_screen_setup)
+        .add_systems(OnExit(MenuState::Help), despawn_screen::<OnHelpMenuScreen>);
+    // .add_systems(Update, setting_button::<>)
 }
 
 // State used for the current menu screen
@@ -72,6 +75,7 @@ pub enum MenuState {
     Settings,
     SettingsDisplay,
     SettingsSound,
+    Help,
     #[default]
     Disabled,
 }
@@ -95,6 +99,9 @@ struct OnDisplaySettingsMenuScreen;
 #[derive(Component)]
 struct OnSoundSettingsMenuScreen;
 
+#[derive(Component)]
+struct OnHelpMenuScreen;
+
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
 const HOVERED_PRESSED_BUTTON: Color = Color::rgb(0.25, 0.65, 0.25);
@@ -113,6 +120,7 @@ enum MenuButtonAction {
     SettingsSound,
     BackToMainMenu,
     BackToSettings,
+    GoToHelp,
     Quit,
 }
 
@@ -241,6 +249,7 @@ pub fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     // Display three buttons for each action available from the main menu:
                     // - new game
                     // - settings
+                    // - help
                     // - quit
                     parent
                         .spawn((
@@ -287,6 +296,25 @@ pub fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     parent
                         .spawn((
                             ButtonBundle {
+                                style: button_style.clone(),
+                                background_color: NORMAL_BUTTON.into(),
+                                ..default()
+                            },
+                            MenuButtonAction::GoToHelp,
+                        ))
+                        .with_children(|parent| {
+                            let icon = asset_server.load("textures/Game Icons/help.png");
+                            parent.spawn(ImageBundle {
+                                style: button_icon_style.clone(),
+                                image: UiImage::new(icon),
+                                ..default()
+                            });
+                            parent
+                                .spawn(TextBundle::from_section("Help", button_text_style.clone()));
+                        });
+                    parent
+                        .spawn((
+                            ButtonBundle {
                                 style: button_style,
                                 background_color: NORMAL_BUTTON.into(),
                                 ..default()
@@ -300,7 +328,7 @@ pub fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 image: UiImage::new(icon),
                                 ..default()
                             });
-                            parent.spawn(TextBundle::from_section("Quit", button_text_style));
+                            parent.spawn(TextBundle::from_section("Exit", button_text_style));
                         });
                 });
         });
@@ -677,6 +705,105 @@ fn sound_settings_menu_setup(mut commands: Commands, volume: Res<Volume>) {
         });
 }
 
+fn help_screen_setup(mut commands: Commands) {
+    let button_style = Style {
+        width: Val::Px(200.0),
+        height: Val::Px(65.0),
+        margin: UiRect::all(Val::Px(20.0)),
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+        ..default()
+    };
+    let button_text_style = TextStyle {
+        font_size: 40.0,
+        color: TEXT_COLOR,
+        ..default()
+    };
+
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                ..default()
+            },
+            OnHelpMenuScreen,
+        ))
+        .with_children(|parent| {
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    background_color: Color::GRAY.into(),
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent.spawn(
+                        TextBundle::from_section(
+                            "HELP",
+                            TextStyle {
+                                font_size: 60.0,
+                                color: TEXT_COLOR,
+                                ..default()
+                            },
+                        )
+                        .with_style(Style {
+                            margin: UiRect::new(
+                                Val::Px(50.0),
+                                Val::Px(50.0),
+                                Val::Px(50.0),
+                                Val::Px(10.0),
+                            ),
+                            ..default()
+                        }),
+                    );
+                    parent.spawn(
+                        TextBundle::from_section(
+                            "1. Use the arrow keys or w, a, s, and d to move the player.\n\
+        2. Use l to shoot lasers.\n\
+        3. Avoid being shot by the enemy and get the highest score possible.\n\
+        4. There are 5 levels to play. Good Luck!",
+                            TextStyle {
+                                font_size: 25.0,
+                                color: TEXT_COLOR,
+                                ..default()
+                            },
+                        )
+                        .with_style(Style {
+                            padding: UiRect::all(Val::Px(20.0)),
+                            margin: UiRect::all(Val::Px(50.0)),
+                            flex_wrap: FlexWrap::Wrap,
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            border: UiRect::all(Val::Px(2.0)), // Add border
+                            ..default()
+                        }),
+                    );
+
+                    parent
+                        .spawn((
+                            ButtonBundle {
+                                style: button_style,
+                                background_color: NORMAL_BUTTON.into(),
+                                ..default()
+                            },
+                            MenuButtonAction::BackToMainMenu,
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn(TextBundle::from_section("Back", button_text_style));
+                        });
+                });
+        });
+}
+
 fn menu_action(
     interaction_query: Query<
         (&Interaction, &MenuButtonAction),
@@ -704,6 +831,9 @@ fn menu_action(
                 MenuButtonAction::BackToMainMenu => menu_state.set(MenuState::Main),
                 MenuButtonAction::BackToSettings => {
                     menu_state.set(MenuState::Settings);
+                }
+                MenuButtonAction::GoToHelp => {
+                    menu_state.set(MenuState::Help);
                 }
             }
         }
