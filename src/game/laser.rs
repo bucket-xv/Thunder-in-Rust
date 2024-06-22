@@ -8,29 +8,33 @@ use super::{
     AttackTarget, HittingEvent, OnGameScreen, Player, Scoreboard, HP, TOP_WALL, WALL_THICKNESS,
 };
 
-pub const LASER_DURATION: f32 = 100.0;
-pub const LASER_COLOR: Color = Color::rgba(1.0, 0.7, 0., 0.80);
+pub(super) const LASER_DURATION: f32 = 10.0;
+pub(super) const LASER_COLOR: Color = Color::rgba(1.0, 0.7, 0., 0.80);
 
 #[derive(Component)]
-pub struct Laser {
-    pub enabled: bool,
-    pub duration_timer: Option<Timer>,
+pub(super) struct Laser {
+    pub(super) enabled: bool,
+    pub(super) duration_timer: Option<Timer>,
 }
 
 #[derive(Component)]
-pub struct LaserRay;
+pub(super) struct LaserBoardUi;
+
+#[derive(Component)]
+pub(super) struct LaserRay;
 
 #[derive(Resource)]
-pub struct LaserAttackTimer(Timer);
+pub(super) struct LaserAttackTimer(Timer);
 
 pub(super) fn setup_laser_attack_timer(mut commands: Commands) {
     commands.insert_resource(LaserAttackTimer(Timer::from_seconds(
-        0.5,
+        0.1,
         TimerMode::Repeating,
     )));
 }
 
 pub(super) fn shoot_laser(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -38,7 +42,10 @@ pub(super) fn shoot_laser(
     mut laser_query: Query<(&mut Laser, &Transform), With<Player>>,
 ) {
     for (mut laser, transform) in &mut laser_query {
-        if laser.enabled && !laser.duration_timer.as_mut().unwrap().finished() {
+        if laser.enabled
+            && !laser.duration_timer.as_mut().unwrap().finished()
+            && keyboard_input.pressed(KeyCode::KeyL)
+        {
             laser.duration_timer.as_mut().unwrap().tick(time.delta());
             commands.spawn(gen_laserray(
                 &mut meshes,
@@ -126,4 +133,19 @@ fn gen_laserray(
         LaserRay,
         OnGameScreen,
     );
+}
+
+pub(super) fn update_laserboard(
+    laser: Query<&mut Laser, With<Player>>,
+    mut query: Query<&mut Text, With<LaserBoardUi>>,
+) {
+    let mut text = query.single_mut();
+    let laser = laser.single();
+    if laser.enabled == false {
+        text.sections[1].value = "N/A".to_string();
+    } else {
+        let timer = laser.duration_timer.as_ref().unwrap();
+        let remain = (timer.fraction_remaining() * 100.0).floor();
+        text.sections[1].value = remain.to_string();
+    }
 }
