@@ -5,15 +5,16 @@ use core::f32::consts::PI;
 // use bevy_rand::prelude::WyRand;
 // use rand::{thread_rng, Rng};
 
-pub fn gen_user_plane(level: u32) -> PlayerPlaneBundle {
+pub fn gen_user_plane(asset_server: Res<AssetServer>, level: u32) -> PlayerPlaneBundle {
     let plane_y = BOTTOM_WALL + GAP_BETWEEN_PLANE_AND_WALL;
     PlayerPlaneBundle {
         plane_bundle: PlaneBundle {
             plane: Plane,
             sprite_bundle: SpriteBundle {
+                texture: asset_server.load("textures/entities/plane.png"),
                 transform: Transform {
                     translation: Vec3::new(0.0, plane_y, 0.0),
-                    scale: PLANE_SIZE,
+                    scale: Vec3::new(0.2, 0.2, 0.0),
                     ..default()
                 },
                 sprite: Sprite {

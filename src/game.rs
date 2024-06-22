@@ -209,7 +209,7 @@ fn game_setup(
     commands.insert_resource(HittingSound(hitting_sound));
 
     // Player Plane
-    let user_plane = generator::gen_user_plane(level.0);
+    let user_plane = generator::gen_user_plane(asset_server, level.0);
     commands.spawn(user_plane);
 
     // Scoreboard
@@ -423,8 +423,6 @@ enum HittingEvent {
     HitPlane,
     HitLaserStar,
 }
-#[derive(Component)]
-struct Brick;
 
 #[derive(Resource)]
 struct HittingSound(Handle<AudioSource>);
