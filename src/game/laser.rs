@@ -208,6 +208,9 @@ pub(super) fn add_laser_star(
     mut laser_star_generate_timer: ResMut<LaserStarGenerateTimer>,
     mut laser_star_vanish_timer: ResMut<LaserStarVanishTimer>,
 ) {
+    if laser.is_empty() {
+        return;
+    }
     if !laser.single().enabled {
         return;
     }

@@ -11,14 +11,10 @@ pub fn gen_user_plane(asset_server: Res<AssetServer>, level: u32) -> PlayerPlane
         plane_bundle: PlaneBundle {
             plane: Plane,
             sprite_bundle: SpriteBundle {
-                texture: asset_server.load("textures/entities/plane.png"),
+                texture: asset_server.load("textures/entities/plane2.png"),
                 transform: Transform {
                     translation: Vec3::new(0.0, plane_y, 0.0),
-                    scale: Vec3::new(0.2, 0.2, 0.0),
-                    ..default()
-                },
-                sprite: Sprite {
-                    color: PLANE_COLOR,
+                    scale: Vec3::new(0.1, 0.1, 0.0),
                     ..default()
                 },
                 ..default()
