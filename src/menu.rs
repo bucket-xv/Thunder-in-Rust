@@ -10,8 +10,9 @@ use super::{despawn_screen, DisplayQuality, GameState, Volume, TEXT_COLOR};
 // Const strings for the help screen
 pub const HELP_SCREEN: &str = "1. Use the arrow keys or w, a, s, and d to move the player.\n\
         2. Use l to shoot lasers.\n\
-        3. Avoid being shot by the enemy and get the highest score possible.\n\
-        4. There are 5 levels to play. Good Luck!";
+        3. Move your plane to capture the stars to gain more laser time.\n\
+        4. Avoid being shot by the enemy and get the highest score possible.\n\
+        5. There are 5 levels to play. Good Luck!";
 
 // This plugin manages the menu, with 5 different screens:
 // - a main menu with "New Game", "Settings", "Quit"

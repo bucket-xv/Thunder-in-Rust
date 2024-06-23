@@ -17,8 +17,10 @@ use bevy::{
     prelude::*,
     sprite::MaterialMesh2dBundle,
 };
+use bevy_spritesheet_animation::prelude::SpritesheetLibrary;
 use core::f32::consts::PI;
 use laser::{add_laser_star, remove_laser_star};
+use crate::animes::{AnimationIndices, AnimationTimer};
 // use bevy_rand::prelude::WyRand;
 // use bevy_rand::resource::GlobalEntropy;
 // use rand::Rng;
@@ -185,6 +187,8 @@ fn game_menu_action(
 // Add the game's entities to our world
 fn game_setup(
     mut commands: Commands,
+    mut library: ResMut<SpritesheetLibrary>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut game_state: ResMut<NextState<GameState>>,
     // mut meshes: ResMut<Assets<Mesh>>,
     // mut materials: ResMut<Assets<ColorMaterial>>,
@@ -209,7 +213,7 @@ fn game_setup(
     commands.insert_resource(HittingSound(hitting_sound));
 
     // Player Plane
-    let user_plane = generator::gen_user_plane(level.0);
+    let user_plane = generator::gen_user_plane(library, atlas_layouts, asset_server, level.0);
     commands.spawn(user_plane);
 
     // Scoreboard
@@ -366,7 +370,9 @@ struct PlaneBundle {
     on_game_screen: OnGameScreen,
     hp: HP,
     bullet_target: AttackTarget,
-    sprite_bundle: SpriteBundle,
+    sprite_bundle: SpriteSheetBundle,
+    animation_indices: AnimationIndices,
+    animation_timer: AnimationTimer,
 }
 
 #[derive(Bundle)]
@@ -423,8 +429,6 @@ enum HittingEvent {
     HitPlane,
     HitLaserStar,
 }
-#[derive(Component)]
-struct Brick;
 
 #[derive(Resource)]
 struct HittingSound(Handle<AudioSource>);
@@ -434,7 +438,7 @@ struct HittingSound(Handle<AudioSource>);
 struct WallBundle {
     // You can nest bundles inside of other bundles like this
     // Allowing you to compose their functionality
-    sprite_bundle: SpriteBundle,
+    sprite_bundle: SpriteSheetBundle,
     collider: AttackTarget,
 }
 
@@ -479,7 +483,7 @@ impl WallBundle {
     // making our code easier to read and less prone to bugs when we change the logic
     fn new(location: WallLocation) -> WallBundle {
         WallBundle {
-            sprite_bundle: SpriteBundle {
+            sprite_bundle: SpriteSheetBundle {
                 transform: Transform {
                     // We need to convert our Vec2 into a Vec3, by giving it a z-coordinate
                     // This is used to determine the order of our sprites
@@ -699,6 +703,15 @@ fn check_for_bullet_hitting(
                         // if maybe_player.is_some() {
                         //     scoreboard.hp = scoreboard.hp.saturating_sub(1);
                         // }
+
+                        //commands.spawn( animes::setup_test(
+                        //    
+                        //));
+
+                        //commands.spawn(ExplosionParticle {
+                        //    bullet_transform.translation.truncate()
+                        //});
+
                         hitting_events.send(HittingEvent::HitPlane)
                     }
                     // Walls should not be despawned
