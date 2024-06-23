@@ -337,9 +337,70 @@ struct Level(u32);
 
 #### 游戏逻辑
 
+（吴悦天&徐陈皓）
+
 ![image-20240623155022954](./report.assets/image-20240623155022954.png)
 
-Thunder 的游戏逻辑在 `game` 模块中实现，`game.rs` 实现了一个插件 `game_plugin`
+Thunder 的游戏逻辑在 `game` 模块中实现，`game.rs` 实现了一个插件 `game_plugin`：
+
+```rust
+// This plugin will contain the game. It will focus on the state `GameState::Game`
+pub fn game_plugin(app: &mut App) {
+    app.add_systems(OnEnter(GameState::Init), game_setup)
+        .add_event::<HittingEvent>()
+        .add_systems(OnEnter(GameState::Game), setup_laser)
+        // Add our gameplay simulation systems to the fixed timestep schedule
+        // which runs at 64 Hz by default
+        .add_systems(
+            FixedUpdate,
+            (
+                generate_enemy,
+                shoot_gun,
+                apply_velocity,
+                clear_laser,
+                move_player_plane,
+                shoot_laser,
+                check_for_bullet_hitting,
+                check_for_laserray_hitting,
+                check_for_laser_star_capture,
+                play_hitting_sound,
+                update_scoreboard,
+                update_hpboard,
+                update_laserboard,
+                check_for_next_wave,
+                add_laser_star,
+                remove_laser_star,
+            )
+                // `chain`ing systems together runs them in order
+                .chain()
+                .run_if(in_state(GameState::Game)),
+        )
+        .add_systems(
+            Update,
+            (button_system, game_menu_action, back_on_esc).run_if(in_state(GameState::Game)),
+        )
+        .add_systems(
+            OnEnter(GameState::Menu),
+            (despawn_screen::<OnGameScreen>, restore_background),
+        )
+        .add_systems(
+            OnEnter(GameState::Win),
+            (despawn_screen::<OnGameScreen>, restore_background),
+        )
+        .add_systems(
+            OnEnter(GameState::Lose),
+            (despawn_screen::<OnGameScreen>, restore_background),
+        )
+        .add_systems(
+            OnEnter(GameState::Completion),
+            (despawn_screen::<OnGameScreen>, restore_background),
+        );
+}
+```
+
+其中实现核心逻辑的是每一帧更新时执行的一系列 systems……
+
+另一种武器是激光 laser，其对应的“子弹”为”镭射“ laser ray。和普通子弹不同的是，激光镭射是触发时立刻打出一个矩形向上方射出，该矩形延伸至上方边界，并会对矩形内部所有敌机产生伤害。
 
 ### `GitHub Pages`部署
 
