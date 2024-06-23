@@ -175,7 +175,7 @@ pub(super) fn update_laserboard(
 
 fn gen_laser_star(asset_server: Res<AssetServer>) -> impl Bundle {
     (
-        SpriteBundle {
+        SpriteSheetBundle {
             texture: asset_server.load("textures/entities/star.fill.png"),
             transform: Transform {
                 translation: PositionConfig::Random(

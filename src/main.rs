@@ -11,6 +11,7 @@ use bevy::prelude::*;
 use bevy_rand::prelude::EntropyPlugin;
 use bevy_rand::prelude::WyRand;
 use bevy_spritesheet_animation::prelude::*;
+use animes::animate_sprite;
 // use rand_core::RngCore;
 
 const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
@@ -66,6 +67,7 @@ fn main() {
         // Declare the game state, whose starting value is determined by the `Default` trait
         .init_state::<GameState>()
         .add_systems(Startup, setup)
+        .add_systems(Update, animate_sprite)
         // for test
         //.add_systems(Startup, animes::setup_character)
         // Adds the plugins for each state

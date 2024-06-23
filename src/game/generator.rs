@@ -1,28 +1,35 @@
 use super::*;
+use bevy_spritesheet_animation::prelude::SpritesheetLibrary;
 use crate::game::config::{EnemyConfig, WaveConfig};
+use crate::animes::{setup_player};
+use crate::animes::{AnimationIndices, AnimationTimer};
 use core::f32::consts::PI;
+
 // use bevy_rand::prelude::GlobalEntropy;
 // use bevy_rand::prelude::WyRand;
 // use rand::{thread_rng, Rng};
 
-pub fn gen_user_plane(asset_server: Res<AssetServer>, level: u32) -> PlayerPlaneBundle {
+pub fn gen_user_plane(
+    mut library: ResMut<SpritesheetLibrary>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    asset_server: Res<AssetServer>, 
+    level: u32) -> PlayerPlaneBundle {
     let plane_y = BOTTOM_WALL + GAP_BETWEEN_PLANE_AND_WALL;
     PlayerPlaneBundle {
         plane_bundle: PlaneBundle {
             plane: Plane,
-            sprite_bundle: SpriteBundle {
-                texture: asset_server.load("textures/entities/plane2.png"),
-                transform: Transform {
-                    translation: Vec3::new(0.0, plane_y, 0.0),
-                    scale: Vec3::new(0.1, 0.1, 0.0),
-                    ..default()
-                },
-                ..default()
-            },
+            sprite_bundle: setup_player(
+                library, 
+                atlas_layouts, 
+                asset_server, 
+                "textures\\entities\\example_3.png".to_string(), 
+                8),
             hp: HP(match level {
                 1 => 4,
                 _ => PLAYER_PLANE_HP,
             }),
+            animation_indices: AnimationIndices { first: 0, last: 7 },
+            animation_timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
             on_game_screen: OnGameScreen,
             gun: GatlingGun {
                 bullet_config: BulletConfig {
@@ -68,7 +75,7 @@ fn gen_enemy(
 
     EnemyBundle {
         plane_bundle: PlaneBundle {
-            sprite_bundle: SpriteBundle {
+            sprite_bundle: SpriteSheetBundle {
                 transform: Transform {
                     translation: enemy_config.position.gen().extend(0.0),
                     scale: enemy_config.scale.extend(0.0),
@@ -101,6 +108,8 @@ fn gen_enemy(
             bullet_target: AttackTarget,
             on_game_screen: OnGameScreen,
             hp: HP(enemy_config.hp),
+            animation_indices: AnimationIndices { first: 0, last: 0 },
+            animation_timer: AnimationTimer(Timer::from_seconds(2000000000.0, TimerMode::Repeating)),
         },
         enemy: Enemy {},
     }
