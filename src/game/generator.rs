@@ -22,7 +22,7 @@ pub fn gen_user_plane(
                 library, 
                 atlas_layouts, 
                 asset_server, 
-                "textures\\entities\\player.png".to_string(), 
+                "textures/entities/player.png".to_string(), 
                 9),
             hp: HP(match level {
                 1 => 100,
