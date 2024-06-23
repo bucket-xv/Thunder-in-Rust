@@ -315,7 +315,15 @@ fn menu_action(
 
 #### 关卡选择
 
-（吴悦天）
+在主菜单中点击 New Game 会进入关卡选择界面。关卡的实现机制是定义了一个全局的 resource：
+
+```rust
+// Levels to play that can be choose in the menu. It will be a resource in the app
+#[derive(Resource, Debug, Component, PartialEq, Eq, Clone, Copy)]
+struct Level(u32);
+```
+
+在菜单中用上文介绍的方法和思路渲染出 level select menu，并设计一个 level button 的交互系统。与设置部分等按钮交互系统不同的是，level按钮在选择之后，应该既像其他设置一样更新对应的resource，但又不能仍然停留在 menu 界面，而是应该进入游戏。具体实现中，我们还加入了一个 level splash screen（`level_splash.rs`) ，用于在进入游戏之前显示当前关卡，level splash screen 结束之后进入游戏。在生成敌人以及配置武器时，会根据 level 这个 resource 的值来进行不同的配置，从而实现关卡机制。
 
 #### 结算
 
