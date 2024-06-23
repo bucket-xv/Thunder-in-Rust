@@ -22,13 +22,13 @@ pub fn gen_user_plane(
                 library, 
                 atlas_layouts, 
                 asset_server, 
-                "textures\\entities\\example_3.png".to_string(), 
-                8),
+                "textures\\entities\\player.png".to_string(), 
+                9),
             hp: HP(match level {
                 1 => 10,
                 _ => PLAYER_PLANE_HP,
             }),
-            animation_indices: AnimationIndices { first: 0, last: 7 },
+            animation_indices: AnimationIndices { first: 0, last: 8 },
             animation_timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
             on_game_screen: OnGameScreen,
             gun: GatlingGun {
