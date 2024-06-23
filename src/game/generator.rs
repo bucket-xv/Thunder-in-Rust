@@ -27,7 +27,6 @@ pub fn gen_user_plane(
             hp: HP(match level {
                 1 => 100,
                 2 => 400,
-                3 => 500,
                 _ => PLAYER_PLANE_HP,
             }),
             animation_indices: AnimationIndices { first: 0, last: 8 },

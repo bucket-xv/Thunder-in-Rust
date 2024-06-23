@@ -57,7 +57,7 @@ const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
 const HPBOARD_TEXT_PADDING: Val = Val::Px(50.0);
 const LASERBOARD_TEXT_PADDING: Val = Val::Px(95.0);
 const MENU_BUTTON_PADDING: Val = Val::Px(10.0);
-const PLAYER_PLANE_HP: u32 = 2000;
+const PLAYER_PLANE_HP: u32 = 500;
 
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 const PLANE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
