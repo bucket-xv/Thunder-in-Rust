@@ -88,8 +88,6 @@ pub fn menu_plugin(app: &mut App) {
 }
 ```
 
-
-
 具体来说，菜单是一个 State Machine, `menu.rs` 中定义了一个 `MenuState`: 
 
 
@@ -315,7 +313,11 @@ fn menu_action(
 
 #### 关卡选择
 
-在主菜单中点击 New Game 会进入关卡选择界面。关卡的实现机制是定义了一个全局的 resource：
+在主菜单中点击 New Game 会进入关卡选择界面。
+
+![image-20240623154431320](./report.assets/image-20240623154431320.png)
+
+关卡的实现机制是定义了一个全局的 resource：
 
 ```rust
 // Levels to play that can be choose in the menu. It will be a resource in the app
@@ -335,7 +337,9 @@ struct Level(u32);
 
 #### 游戏逻辑
 
-（吴悦天&徐陈皓）
+![image-20240623155022954](./report.assets/image-20240623155022954.png)
+
+Thunder 的游戏逻辑在 `game` 模块中实现，`game.rs` 实现了一个插件 `game_plugin`
 
 ### `GitHub Pages`部署
 
