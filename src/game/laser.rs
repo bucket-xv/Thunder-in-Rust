@@ -6,7 +6,7 @@ use bevy::{
 
 use super::{
     config::PositionConfig, AttackTarget, HittingEvent, OnGameScreen, Player, Scoreboard,
-    BOTTOM_WALL, GAP_BETWEEN_PLANE_AND_WALL, HP, LEFT_WALL, RIGHT_WALL, TOP_WALL, WALL_THICKNESS,
+    BOTTOM_WALL, GAP_BETWEEN_PLANE_AND_WALL, HP, LEFT_WALL, RIGHT_WALL, TOP_WALL, WALL_THICKNESS, HARM_LASER 
 };
 
 use crate::Level;
@@ -49,7 +49,8 @@ pub(super) fn setup_laser(
     )));
     commands.insert_resource(LaserStarGenerateTimer(Timer::from_seconds(
         match level.0 {
-            1 => 10000.0,
+            1 => 100000.0,
+            2 => 5.0,
             _ => 8.0
         },
         TimerMode::Repeating,
@@ -122,7 +123,7 @@ pub(super) fn check_for_laserray_hitting(
                 // Bricks should be despawned and increment the scoreboard on hitting
                 match maybe_hp {
                     Some(mut hp) => {
-                        hp.0 = hp.0.saturating_sub(1);
+                        hp.0 = hp.0.saturating_sub(HARM_LASER);
                         if hp.0 <= 0 {
                             commands.entity(target_entity).despawn();
                             scoreboard.score += 1;
