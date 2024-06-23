@@ -716,9 +716,7 @@ fn check_for_bullet_hitting(
                         //    
                         //));
 
-                        //commands.spawn(ExplosionParticle {
-                        //    bullet_transform.translation.truncate()
-                        //});
+                        // commands.spawn(animes::explosion_particle(bullet_transform.translation.truncate()));
 
                         hitting_events.send(HittingEvent::HitPlane)
                     }
