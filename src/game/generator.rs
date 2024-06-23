@@ -23,7 +23,7 @@ pub fn gen_user_plane(level: u32) -> PlayerPlaneBundle {
                 ..default()
             },
             hp: HP(match level {
-                1 => 4,
+                1 => 10,
                 _ => PLAYER_PLANE_HP,
             }),
             on_game_screen: OnGameScreen,
@@ -32,14 +32,22 @@ pub fn gen_user_plane(level: u32) -> PlayerPlaneBundle {
                     color: BULLET_COLOR,
                     diameter: BULLET_DIAMETER,
                     relative_position: BULLET_STARTING_RELATIVE_POSITION,
-                    speed: USER_BULLET_SPEED,
+                    speed: match level{
+                        1 => 300.0,
+                        _ => USER_BULLET_SPEED,
+                    },
                     direction: BulletDirection::Fix(PI / 2.0),
                 },
-                shoot_timer: Timer::from_seconds(BULLET_SHOOTING_INTERVAL, TimerMode::Repeating),
+                shoot_timer: Timer::from_seconds(match level {
+                    _ => BULLET_SHOOTING_INTERVAL
+                }, TimerMode::Repeating),
             },
             laser: Laser {
                 enabled: true,
-                duration_timer: Some(Timer::from_seconds(laser::LASER_DURATION, TimerMode::Once)),
+                duration_timer: Some(Timer::from_seconds(match level{
+                    1 => 0.0, 
+                    _ => laser::LASER_DURATION
+                }, TimerMode::Once)),
             },
             bullet_target: AttackTarget,
         },

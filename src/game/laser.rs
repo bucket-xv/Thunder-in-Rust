@@ -9,6 +9,8 @@ use super::{
     BOTTOM_WALL, GAP_BETWEEN_PLANE_AND_WALL, HP, LEFT_WALL, RIGHT_WALL, TOP_WALL, WALL_THICKNESS,
 };
 
+use crate::Level;
+
 pub(super) const LASER_DURATION: f32 = 10.0;
 pub(super) const LASER_COLOR: Color = Color::rgba(1.0, 0.7, 0., 0.80);
 const LASER_STAR_SIZE: Vec3 = Vec3::new(1.5, 1.5, 0.);
@@ -37,13 +39,19 @@ pub(super) struct LaserStarGenerateTimer(Timer);
 #[derive(Resource)]
 pub(super) struct LaserStarVanishTimer(Timer);
 
-pub(super) fn setup_laser(mut commands: Commands) {
+pub(super) fn setup_laser(
+    mut commands: Commands,
+    level: Res<Level>,
+) {
     commands.insert_resource(LaserAttackTimer(Timer::from_seconds(
         0.1,
         TimerMode::Repeating,
     )));
     commands.insert_resource(LaserStarGenerateTimer(Timer::from_seconds(
-        8.0,
+        match level.0 {
+            1 => 10000.0,
+            _ => 8.0
+        },
         TimerMode::Repeating,
     )));
     commands.insert_resource(LaserStarVanishTimer(Timer::from_seconds(

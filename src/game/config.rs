@@ -11,6 +11,7 @@ pub const ENEMY_PLANE_HP: u32 = 3;
 pub const ENEMY_START_TIME: f32 = 1.0;
 pub const ENEMY_GEN_INTERVAL: f32 = 2.0;
 const DEFAULT_BULLET_SPEED: f32 = 350.0;
+//pub const DEFAULT_LASER_STAR_GENERATE_TIME : f32 = 0.8;
 const PI: f32 = std::f32::consts::PI;
 
 #[derive(Clone, Copy)]
@@ -34,6 +35,7 @@ impl PositionConfig {
         }
     }
 }
+
 impl Default for PositionConfig {
     fn default() -> Self {
         PositionConfig::Random(
@@ -70,6 +72,7 @@ impl BulletDirectionConfig {
         }
     }
 }
+
 impl Default for BulletDirectionConfig {
     fn default() -> Self {
         Self::Random(Vec2::new(-3.0 * PI / 4.0, -PI / 4.0))
@@ -115,7 +118,7 @@ pub enum WaveConfig {
 impl WaveConfig {
     pub fn get_wave_len(level: u32) -> u32 {
         match level {
-            1 => 2,
+            1 => 4,
             2 => 4,
             3 => 5,
             4 => 5,
@@ -126,18 +129,52 @@ impl WaveConfig {
     pub fn get(level: u32, wave: u32) -> WaveConfig {
         match (level, wave) {
             //level 1
-            (1, 0) => WaveConfig::Duplicate(
+            (1, 0) => WaveConfig::Detailed(vec![
                 EnemyConfig {
-                    bullet_direction: BulletDirectionConfig::Trace,
+                    position: PositionConfig::Determinate(Vec2::new(200.0 , 200.0)),
+                    bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
                     hp: 1,
+                    bullet_speed: 100.0 ,
+                    shooting_interval: 1.5,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Determinate(Vec2::new(-200.0 , 200.0)),
+                    bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
+                    hp: 1,
+                    bullet_speed: 100.0 ,
+                    shooting_interval: 1.5,
+                    ..default()
+                },
+            ]  
+            ),
+            (1, 1) => WaveConfig::Duplicate(
+                EnemyConfig {
+                    position: PositionConfig::Determinate(Vec2::new(0.0 , 200.0)),
+                    bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
+                    hp: 4,
+                    bullet_speed: 200.0 ,
+                    shooting_interval: 1.0,
                     ..default()
                 },
                 1,
             ),
-            (1, 1) => WaveConfig::Duplicate(
+            (1, 2) => WaveConfig::Duplicate(
                 EnemyConfig {
                     bullet_direction: BulletDirectionConfig::Trace,
-                    hp: 10,
+                    hp: 2,
+                    bullet_speed: 200.0 ,
+                    shooting_interval: 0.8,
+                    ..default()
+                },
+                1,
+            ),
+            (1, 3) => WaveConfig::Duplicate(
+                EnemyConfig {
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    hp: 3,
+                    bullet_speed: 240.0 ,
+                    shooting_interval: 0.8,
                     ..default()
                 },
                 2,
@@ -192,51 +229,3 @@ impl WaveConfig {
         }
     }
 }
-
-// pub static ENEMY_GEN: Lazy<[EnemyGenerationConfig; 3]> = Lazy::new(|| {
-//     let mut rng = rand::thread_rng();
-//     [
-//         EnemyGenerationConfig {
-//             number_of_enemies: 1,
-//             weapon: Weapon {
-//                 weapon_type: WeaponType::GatlingGun,
-//                 bullet_config: BulletConfig {
-//                     color: BULLET_COLOR,
-//                     diameter: BULLET_DIAMETER,
-//                     relative_position: -BULLET_STARTING_RELATIVE_POSITION,
-//                     speed: DEFAULT_BULLET_SPEED
-//                         * Vec2::from_angle(rng.gen_range(-3.0 * PI / 4.0..-PI / 4.0)),
-//                 },
-//                 shoot_timer: Timer::from_seconds(BULLET_SHOOTING_INTERVAL, TimerMode::Repeating),
-//             },
-//         },
-//         EnemyGenerationConfig {
-//             number_of_enemies: 2,
-//             weapon: Weapon {
-//                 weapon_type: WeaponType::GatlingGun,
-//                 bullet_config: BulletConfig {
-//                     color: BULLET_COLOR,
-//                     diameter: BULLET_DIAMETER,
-//                     relative_position: -BULLET_STARTING_RELATIVE_POSITION,
-//                     speed: DEFAULT_BULLET_SPEED
-//                         * Vec2::from_angle(rng.gen_range(-3.0 * PI / 4.0..-PI / 4.0)),
-//                 },
-//                 shoot_timer: Timer::from_seconds(BULLET_SHOOTING_INTERVAL, TimerMode::Repeating),
-//             },
-//         },
-//         EnemyGenerationConfig {
-//             number_of_enemies: 3,
-//             weapon: Weapon {
-//                 weapon_type: WeaponType::GatlingGun,
-//                 bullet_config: BulletConfig {
-//                     color: BULLET_COLOR,
-//                     diameter: BULLET_DIAMETER,
-//                     relative_position: -BULLET_STARTING_RELATIVE_POSITION,
-//                     speed: DEFAULT_BULLET_SPEED
-//                         * Vec2::from_angle(rng.gen_range(-3.0 * PI / 4.0..-PI / 4.0)),
-//                 },
-//                 shoot_timer: Timer::from_seconds(BULLET_SHOOTING_INTERVAL, TimerMode::Repeating),
-//             },
-//         },
-//     ]
-// });
