@@ -10,8 +10,8 @@ use core::f32::consts::PI;
 // use rand::{thread_rng, Rng};
 
 pub fn gen_user_plane(
-    mut library: ResMut<SpritesheetLibrary>,
-    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    library: ResMut<SpritesheetLibrary>,
+    atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     asset_server: Res<AssetServer>, 
     level: u32) -> PlayerPlaneBundle {
     let plane_y = BOTTOM_WALL + GAP_BETWEEN_PLANE_AND_WALL;
@@ -25,7 +25,9 @@ pub fn gen_user_plane(
                 "textures\\entities\\player.png".to_string(), 
                 9),
             hp: HP(match level {
-                1 => 10,
+                1 => 100,
+                2 => 400,
+                3 => 500,
                 _ => PLAYER_PLANE_HP,
             }),
             animation_indices: AnimationIndices { first: 0, last: 8 },
@@ -38,11 +40,14 @@ pub fn gen_user_plane(
                     relative_position: BULLET_STARTING_RELATIVE_POSITION,
                     speed: match level{
                         1 => 300.0,
+                        2 => 400.0,
                         _ => USER_BULLET_SPEED,
                     },
                     direction: BulletDirection::Fix(PI / 2.0),
                 },
                 shoot_timer: Timer::from_seconds(match level {
+                    1 => 0.6,
+                    2 => 1.5,
                     _ => BULLET_SHOOTING_INTERVAL
                 }, TimerMode::Repeating),
             },

@@ -38,7 +38,7 @@ const PLANE_PADDING: f32 = 10.0;
 
 // We set the z-value of the bullet to 1 so it renders on top in the case of overlapping sprites.
 const BULLET_STARTING_RELATIVE_POSITION: Vec3 = Vec3::new(0.0, 50.0, 0.0);
-const BULLET_SHOOTING_INTERVAL: f32 = 0.4;
+const BULLET_SHOOTING_INTERVAL: f32 = 0.5;
 const BULLET_DIAMETER: f32 = 20.;
 const USER_BULLET_SPEED: f32 = 500.0;
 
@@ -46,18 +46,18 @@ const DEFAULT_ENEMY_BULLET_DIRECTION: f32 = -PI / 2.0;
 
 const WALL_THICKNESS: f32 = 10.0;
 // x coordinates
-const LEFT_WALL: f32 = -450.;
 const RIGHT_WALL: f32 = 450.;
+const LEFT_WALL: f32 = -RIGHT_WALL;
 // y coordinates
-const BOTTOM_WALL: f32 = -300.;
 const TOP_WALL: f32 = 300.;
+const BOTTOM_WALL: f32 = -TOP_WALL;
 
 const SCOREBOARD_FONT_SIZE: f32 = 40.0;
 const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
 const HPBOARD_TEXT_PADDING: Val = Val::Px(50.0);
 const LASERBOARD_TEXT_PADDING: Val = Val::Px(95.0);
 const MENU_BUTTON_PADDING: Val = Val::Px(10.0);
-const PLAYER_PLANE_HP: u32 = 20;
+const PLAYER_PLANE_HP: u32 = 2000;
 
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 const PLANE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
@@ -66,6 +66,14 @@ const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
 const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 const MENU_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
+
+pub const HARM_BULLET : u32 = 12;
+pub const HARM_LASER : u32 = 1;
+
+pub const ENEMY_PLANE_HP: u32 = 30;
+pub const ENEMY_START_TIME: f32 = 1.0;
+pub const ENEMY_GEN_INTERVAL: f32 = 2.0;
+const DEFAULT_BULLET_SPEED: f32 = 350.0;
 
 // This plugin will contain the game. It will focus on the state `GameState::Game`
 pub fn game_plugin(app: &mut App) {
@@ -187,8 +195,8 @@ fn game_menu_action(
 // Add the game's entities to our world
 fn game_setup(
     mut commands: Commands,
-    mut library: ResMut<SpritesheetLibrary>,
-    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    library: ResMut<SpritesheetLibrary>,
+    atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut game_state: ResMut<NextState<GameState>>,
     // mut meshes: ResMut<Assets<Mesh>>,
     // mut materials: ResMut<Assets<ColorMaterial>>,
@@ -201,7 +209,7 @@ fn game_setup(
     });
     commands.insert_resource(ClearColor(BACKGROUND_COLOR));
     commands.insert_resource(EnemyGenerateTimer(Timer::from_seconds(
-        config::ENEMY_START_TIME,
+        ENEMY_START_TIME,
         TimerMode::Once,
     )));
     commands.insert_resource(Wave(0));
@@ -687,7 +695,7 @@ fn check_for_bullet_hitting(
                 // Bricks should be despawned and increment the scoreboard on hitting
                 match maybe_hp {
                     Some(mut hp) => {
-                        hp.0 = hp.0.saturating_sub(1);
+                        hp.0 = hp.0.saturating_sub(HARM_BULLET);
                         if hp.0 == 0 {
                             commands.entity(target_entity).despawn();
                             match maybe_player {
@@ -768,7 +776,7 @@ fn check_for_next_wave(
         wave.0 += 1;
 
         *timer = EnemyGenerateTimer(Timer::from_seconds(
-            config::ENEMY_GEN_INTERVAL,
+            ENEMY_GEN_INTERVAL,
             TimerMode::Once,
         ));
         if wave.0 >= config::WaveConfig::get_wave_len(level.0) {
