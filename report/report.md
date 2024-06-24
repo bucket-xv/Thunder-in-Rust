@@ -38,29 +38,7 @@
 
 #### 主菜单
 
-Thunder的菜单逻辑以一个 Bevy Plugin 的形式实现，这个 plugin 向 App 中添加了若干system，用来控制进入特定状态时各菜单的渲染、点击按钮时的交互以及状态转移前屏幕元素的清除，主要代码如下：
-
-```rust
-pub fn menu_plugin(app: &mut App) {
-    app
-        // At start, the menu is not enabled. This will be changed in `menu_setup` when
-        // entering the `GameState::Menu` state.
-        // Current screen in the menu is handled by an independent state from `GameState`
-        .init_state::<MenuState>()
-        .add_systems(OnEnter(GameState::Menu), menu_setup)
-        // Systems to handle the main menu screen
-        .add_systems(OnEnter(MenuState::Main), main_menu_setup)
-        .add_systems(OnExit(MenuState::Main), despawn_screen::<OnMainMenuScreen>)
-        // Systems to handle the level picking menu screen
-        .add_systems(OnEnter(MenuState::Levels), level_select_menu_setup)
-        .add_systems(Update, (level_button.run_if(in_state(MenuState::Levels)),))
-        .add_systems(
-            OnExit(MenuState::Levels),
-            despawn_screen::<OnLevelsMenuScreen>,
-        );
-    //omitted
-}
-```
+Thunder的菜单逻辑以一个 Bevy Plugin 的形式实现，这个 plugin 向 App 中添加了若干system，用来控制进入特定状态时各菜单的渲染、点击按钮时的交互以及状态转移前屏幕元素的清除。
 
 具体来说，菜单是一个 State Machine, `menu.rs` 中定义了一个 `MenuState`: 
 
