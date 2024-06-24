@@ -1,7 +1,7 @@
 use super::*;
 use bevy_spritesheet_animation::prelude::SpritesheetLibrary;
 use crate::game::config::{EnemyConfig, WaveConfig};
-use crate::animes::{setup_player};
+use crate::animes::setup_player;
 use crate::animes::{AnimationIndices, AnimationTimer};
 use core::f32::consts::PI;
 

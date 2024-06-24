@@ -117,7 +117,7 @@ impl WaveConfig {
             2 => 4,
             3 => 5,
             4 => 5,
-            5 => 5,
+            5 => 6,
             _ => unimplemented!("level {} is unimplemented", level),
         }
     }
@@ -756,7 +756,8 @@ impl WaveConfig {
                         Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
-                    bullet_speed : 500.0,
+                    bullet_speed : 666.0,
+                    shooting_interval : 0.35,
                     hp: 150,
                     ..default()
                 },
@@ -773,11 +774,263 @@ impl WaveConfig {
                 }
             ]
             ),
-            (5, 1) => WaveConfig::Duplicate(EnemyConfig::default(), 2),
-            (5, 2) => WaveConfig::Duplicate(EnemyConfig::default(), 3),
-            (5, 3) => WaveConfig::Duplicate(EnemyConfig::default(), 3),
-            (5, 4) => WaveConfig::Duplicate(EnemyConfig::default(), 3),
-
+            (5, 1) => WaveConfig::Detailed(vec![
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.9 * LEFT_WALL, 0.7 * LEFT_WALL) , 
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 400.0,
+                    shooting_interval : 0.4,
+                    hp: 80,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.6 * LEFT_WALL, 0.4 * LEFT_WALL) , 
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 400.0,
+                    shooting_interval : 0.4,
+                    hp: 120,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.2 * LEFT_WALL, 0.2 * RIGHT_WALL) , 
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.35,
+                    hp: 150,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.4 * RIGHT_WALL, 0.6 * RIGHT_WALL) , 
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.35,
+                    hp: 150,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.7 * RIGHT_WALL, 0.9 * RIGHT_WALL) , 
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.35,
+                    hp: 150,
+                    ..default()
+                }
+            ]
+            ),
+            (5, 2) => WaveConfig::Detailed(vec![
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.8 * LEFT_WALL, 0.5 * LEFT_WALL) , 
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 450.0,
+                    shooting_interval : 0.4,
+                    hp: 1000,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.4 * LEFT_WALL, 0.1 * LEFT_WALL) , 
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.4,
+                    hp: 1000,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.1 * RIGHT_WALL, 0.4 * RIGHT_WALL) , 
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.4,
+                    hp: 1000,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.5 * RIGHT_WALL, 0.8 * RIGHT_WALL) , 
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 450.0,
+                    shooting_interval : 0.4,
+                    hp: 1000,
+                    ..default()
+                }
+            ]
+            ),
+            (5, 3) => WaveConfig::Detailed(vec![
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.8 * LEFT_WALL, 0.2 * LEFT_WALL) , 
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.35,
+                    hp: 2200,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.2 * RIGHT_WALL, 0.8 * RIGHT_WALL) , 
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.35,
+                    hp: 2200,
+                    ..default()
+                }
+            ]
+            ),
+            (5, 4) => WaveConfig::Duplicate(
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.1 * LEFT_WALL, 0.1 * RIGHT_WALL) , 
+                        Vec2::new(0.7 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 666.0,
+                    shooting_interval : 0.2,
+                    hp: 5000,
+                    ..default()
+                }, 
+                1
+            ),
+            (5, 5) => WaveConfig::Detailed(vec![
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.8 * RIGHT_WALL, 0.9 * RIGHT_WALL) , 
+                        Vec2::new(0.5 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.3,
+                    hp: 120,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.6 * RIGHT_WALL, 0.7 * RIGHT_WALL) , 
+                        Vec2::new(0.5 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.3,
+                    hp: 120,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.4 * RIGHT_WALL, 0.5 * RIGHT_WALL) , 
+                        Vec2::new(0.5 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.3,
+                    hp: 120,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.2 * RIGHT_WALL, 0.3 * RIGHT_WALL) , 
+                        Vec2::new(0.5 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.3,
+                    hp: 120,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.0 , 0.1 * RIGHT_WALL) , 
+                        Vec2::new(0.5 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.3,
+                    hp: 120,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.1 * LEFT_WALL, 0.0) , 
+                        Vec2::new(0.5 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.3,
+                    hp: 120,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.3 * LEFT_WALL, 0.2 * LEFT_WALL) , 
+                        Vec2::new(0.5 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.3,
+                    hp: 120,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.5 * LEFT_WALL, 0.4 * LEFT_WALL) , 
+                        Vec2::new(0.5 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.3,
+                    hp: 120,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.7 * LEFT_WALL, 0.6 * LEFT_WALL) , 
+                        Vec2::new(0.5 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.3,
+                    hp: 120,
+                    ..default()
+                },
+                EnemyConfig {
+                    position: PositionConfig::Random(
+                        Vec2::new(0.9 * LEFT_WALL, 0.8 * LEFT_WALL) , 
+                        Vec2::new(0.5 * TOP_WALL, 0.8 * TOP_WALL)
+                    ),
+                    bullet_direction: BulletDirectionConfig::Trace,
+                    bullet_speed : 500.0,
+                    shooting_interval : 0.3,
+                    hp: 120,
+                    ..default()
+                },
+            ]  
+            ),
             _ => unimplemented!("Level {} wave {} is not implemented", level, wave),
         }
     }
