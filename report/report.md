@@ -23,9 +23,13 @@
 
 ### `Bevy`游戏引擎
 
+（胡宇阳）
+
 ### 代码设计
 
 #### 页面切换逻辑
+
+（徐陈皓）
 
 #### 主菜单
 
@@ -530,7 +534,11 @@ pub fn game_plugin(app: &mut App) {
 
 另一种武器是激光 laser，其对应的“子弹”为”镭射“ laser ray。和普通子弹不同的是，激光镭射是触发时立刻打出一个矩形向上方射出，该矩形延伸至上方边界，并会对矩形内部所有敌机产生伤害。
 
-### `GitHub Pages`部署
+### 网页端的开发与部署
+
+
+
+游戏的网页端使用`GitHub Pages`部署，我们在`GitHub`仓库的`Settings`中找到`GitHub Pages`选项，将`Source`设置为`master`分支中的，这样就可以通过`https://bucket-xv.github.io/Thunder-in-Rust/`访问我们的游戏。
 
 ### 项目开发过程
 

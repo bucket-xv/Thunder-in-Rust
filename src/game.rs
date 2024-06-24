@@ -12,6 +12,7 @@ use self::laser::{
 
 use super::{despawn_screen, GameState, Level};
 // use bevy::sprite::Material2d;
+// use crate::animes::{AnimationIndices, AnimationTimer};
 use bevy::{
     math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume},
     prelude::*,
@@ -20,7 +21,6 @@ use bevy::{
 use bevy_spritesheet_animation::prelude::SpritesheetLibrary;
 use core::f32::consts::PI;
 use laser::{add_laser_star, remove_laser_star};
-use crate::animes::{AnimationIndices, AnimationTimer};
 // use bevy_rand::prelude::WyRand;
 // use bevy_rand::resource::GlobalEntropy;
 // use rand::Rng;
@@ -67,8 +67,8 @@ const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 const MENU_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 
-pub const HARM_BULLET : u32 = 12;
-pub const HARM_LASER : u32 = 1;
+pub const HARM_BULLET: u32 = 12;
+pub const HARM_LASER: u32 = 1;
 
 pub const ENEMY_PLANE_HP: u32 = 30;
 pub const ENEMY_START_TIME: f32 = 1.0;
@@ -369,31 +369,6 @@ fn game_setup(
 
 #[derive(Component)]
 struct Plane;
-
-#[derive(Bundle)]
-struct PlaneBundle {
-    plane: Plane,
-    gun: GatlingGun,
-    laser: Laser,
-    on_game_screen: OnGameScreen,
-    hp: HP,
-    bullet_target: AttackTarget,
-    sprite_bundle: SpriteSheetBundle,
-    animation_indices: AnimationIndices,
-    animation_timer: AnimationTimer,
-}
-
-#[derive(Bundle)]
-pub struct PlayerPlaneBundle {
-    plane_bundle: PlaneBundle,
-    player: Player,
-}
-
-#[derive(Bundle)]
-pub struct EnemyBundle {
-    plane_bundle: PlaneBundle,
-    enemy: Enemy,
-}
 
 #[derive(Component, Clone)]
 pub struct GatlingGun {
@@ -713,7 +688,7 @@ fn check_for_bullet_hitting(
                         // }
 
                         //commands.spawn( animes::setup_test(
-                        //    
+                        //
                         //));
 
                         // commands.spawn(animes::explosion_particle(bullet_transform.translation.truncate()));
@@ -773,10 +748,7 @@ fn check_for_next_wave(
         info!("All enemies are destroyed. Next wave is coming.");
         wave.0 += 1;
 
-        *timer = EnemyGenerateTimer(Timer::from_seconds(
-            ENEMY_GEN_INTERVAL,
-            TimerMode::Once,
-        ));
+        *timer = EnemyGenerateTimer(Timer::from_seconds(ENEMY_GEN_INTERVAL, TimerMode::Once));
         if wave.0 >= config::WaveConfig::get_wave_len(level.0) {
             if level.0 == 5 {
                 game_state.set(GameState::Completion);
