@@ -85,6 +85,13 @@ pub struct EnemyConfig {
     pub bullet_direction: BulletDirectionConfig,
     pub bullet_diameter: f32,
     pub shooting_interval: f32,
+    pub moving_mode: Vec<MovingMode>,
+}
+
+pub struct MovingMode {
+    pub speed: f32,
+    pub direction: f32,
+    pub time: f32,
 }
 
 impl Default for EnemyConfig {
@@ -100,6 +107,12 @@ impl Default for EnemyConfig {
             bullet_relative_position: -BULLET_STARTING_RELATIVE_POSITION.truncate(),
             bullet_diameter: BULLET_DIAMETER,
             shooting_interval: BULLET_SHOOTING_INTERVAL,
+            // default moving mode is no moving with speed = 0
+            moving_mode: vec![MovingMode {
+                speed: 0.0,
+                direction: 0.0,
+                time: 10.0,
+            }],
         }
     }
 }
@@ -126,7 +139,10 @@ impl WaveConfig {
             //level 1
             (1, 0) => WaveConfig::Detailed(vec![
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.5 * RIGHT_WALL , 0.5 * TOP_WALL)),
+                    position: PositionConfig::Determinate(Vec2::new(
+                        0.5 * RIGHT_WALL,
+                        0.5 * TOP_WALL,
+                    )),
                     bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
                     hp: 10,
                     bullet_speed: 150.0,
@@ -134,18 +150,20 @@ impl WaveConfig {
                     ..default()
                 },
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.5 * LEFT_WALL , 0.5 * TOP_WALL)),
+                    position: PositionConfig::Determinate(Vec2::new(
+                        0.5 * LEFT_WALL,
+                        0.5 * TOP_WALL,
+                    )),
                     bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
                     hp: 10,
                     bullet_speed: 150.0,
                     shooting_interval: 2.0,
                     ..default()
                 },
-            ]  
-            ),
+            ]),
             (1, 1) => WaveConfig::Duplicate(
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.0 , 0.5 * TOP_WALL)),
+                    position: PositionConfig::Determinate(Vec2::new(0.0, 0.5 * TOP_WALL)),
                     bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
                     hp: 80,
                     bullet_speed: 200.0,
@@ -180,7 +198,7 @@ impl WaveConfig {
                 EnemyConfig {
                     bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
                     hp: 100,
-                    bullet_speed: 250.0 ,
+                    bullet_speed: 250.0,
                     shooting_interval: 1.0,
                     ..default()
                 },
@@ -189,69 +207,67 @@ impl WaveConfig {
             (2, 1) => WaveConfig::Detailed(vec![
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.8 * LEFT_WALL, 0.2 * LEFT_WALL) , 
-                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.8 * LEFT_WALL, 0.2 * LEFT_WALL),
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 100,
-                    bullet_speed: 300.0 ,
+                    bullet_speed: 300.0,
                     shooting_interval: 1.0,
                     ..default()
                 },
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.2 * RIGHT_WALL, 0.8 * RIGHT_WALL) , 
-                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.2 * RIGHT_WALL, 0.8 * RIGHT_WALL),
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 100,
-                    bullet_speed: 300.0 ,
+                    bullet_speed: 300.0,
                     shooting_interval: 1.0,
                     ..default()
-                }
-            ]
-            ),
+                },
+            ]),
             (2, 2) => WaveConfig::Detailed(vec![
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.8 * LEFT_WALL, 0.4 * LEFT_WALL) , 
-                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.8 * LEFT_WALL, 0.4 * LEFT_WALL),
+                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 80,
-                    bullet_speed: 300.0 ,
+                    bullet_speed: 300.0,
                     shooting_interval: 1.4,
                     ..default()
                 },
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.2 * LEFT_WALL, 0.2 * RIGHT_WALL) , 
-                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.2 * LEFT_WALL, 0.2 * RIGHT_WALL),
+                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
                     hp: 120,
-                    bullet_speed: 300.0 ,
+                    bullet_speed: 300.0,
                     shooting_interval: 0.8,
                     ..default()
                 },
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.4 * RIGHT_WALL, 0.8 * RIGHT_WALL) , 
-                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.4 * RIGHT_WALL, 0.8 * RIGHT_WALL),
+                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 80,
-                    bullet_speed: 300.0 ,
+                    bullet_speed: 300.0,
                     shooting_interval: 1.4,
                     ..default()
-                }
-            ]
-            ),
+                },
+            ]),
             (2, 3) => WaveConfig::Detailed(vec![
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.95 * LEFT_WALL, 0.65 * LEFT_WALL) , 
-                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.95 * LEFT_WALL, 0.65 * LEFT_WALL),
+                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 40,
@@ -260,8 +276,8 @@ impl WaveConfig {
                 },
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.55 * LEFT_WALL, 0.3 * LEFT_WALL) , 
-                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.55 * LEFT_WALL, 0.3 * LEFT_WALL),
+                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 80,
@@ -270,8 +286,8 @@ impl WaveConfig {
                 },
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.2 * LEFT_WALL, 0.2 * RIGHT_WALL) , 
-                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.2 * LEFT_WALL, 0.2 * RIGHT_WALL),
+                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
                     hp: 120,
@@ -280,8 +296,8 @@ impl WaveConfig {
                 },
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.3 * RIGHT_WALL, 0.55 * RIGHT_WALL) , 
-                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.3 * RIGHT_WALL, 0.55 * RIGHT_WALL),
+                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 80,
@@ -290,23 +306,22 @@ impl WaveConfig {
                 },
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.65 * RIGHT_WALL, 0.95 * RIGHT_WALL) , 
-                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.65 * RIGHT_WALL, 0.95 * RIGHT_WALL),
+                        Vec2::new(0.4 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 40,
                     shooting_interval: 1.2,
                     ..default()
-                }
-            ]
-            ),
+                },
+            ]),
 
             //level 3
             (3, 0) => WaveConfig::Detailed(vec![
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.8 * LEFT_WALL, 0.4 * LEFT_WALL) , 
-                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.8 * LEFT_WALL, 0.4 * LEFT_WALL),
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
                     hp: 100,
@@ -314,8 +329,8 @@ impl WaveConfig {
                 },
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.2 * LEFT_WALL, 0.2 * RIGHT_WALL) , 
-                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.2 * LEFT_WALL, 0.2 * RIGHT_WALL),
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
                     hp: 100,
@@ -323,20 +338,19 @@ impl WaveConfig {
                 },
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.4 * RIGHT_WALL, 0.8 * RIGHT_WALL) , 
-                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.4 * RIGHT_WALL, 0.8 * RIGHT_WALL),
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
                     hp: 100,
                     ..default()
-                }
-            ]
-            ),
+                },
+            ]),
             (3, 1) => WaveConfig::Detailed(vec![
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.8 * LEFT_WALL, 0.2 * LEFT_WALL) , 
-                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.8 * LEFT_WALL, 0.2 * LEFT_WALL),
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 100,
@@ -344,20 +358,19 @@ impl WaveConfig {
                 },
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.2 * RIGHT_WALL, 0.8 * RIGHT_WALL) , 
-                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.2 * RIGHT_WALL, 0.8 * RIGHT_WALL),
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 100,
                     ..default()
-                }
-            ]
-            ),
+                },
+            ]),
             (3, 2) => WaveConfig::Detailed(vec![
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.8 * LEFT_WALL, 0.4 * LEFT_WALL) , 
-                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.8 * LEFT_WALL, 0.4 * LEFT_WALL),
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 80,
@@ -365,8 +378,8 @@ impl WaveConfig {
                 },
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.2 * LEFT_WALL, 0.2 * RIGHT_WALL) , 
-                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.2 * LEFT_WALL, 0.2 * RIGHT_WALL),
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 80,
@@ -376,41 +389,40 @@ impl WaveConfig {
                     position: PositionConfig::Random(
                         Vec2::new(0.4 * RIGHT_WALL, 0.8 * RIGHT_WALL) , 
                         Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 80,
                     ..default()
-                }
-            ]
-            ),
+                },
+            ]),
             (3, 3) => WaveConfig::Detailed(vec![
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.8 * LEFT_WALL, 0.2 * LEFT_WALL) , 
-                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.8 * LEFT_WALL, 0.2 * LEFT_WALL),
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 80,
-                    bullet_speed : 400.0,
+                    bullet_speed: 400.0,
                     shooting_interval: 0.4,
                     ..default()
                 },
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.2 * RIGHT_WALL, 0.8 * RIGHT_WALL) , 
-                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL)
+                        Vec2::new(0.2 * RIGHT_WALL, 0.8 * RIGHT_WALL),
+                        Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 80,
-                    bullet_speed : 400.0,
+                    bullet_speed: 400.0,
                     shooting_interval: 0.4,
                     ..default()
-                }
-            ]
-            ),
+                },
+            ]),
             (3, 4) => WaveConfig::Detailed(vec![
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.9 * RIGHT_WALL , 0.0)),
+                    position: PositionConfig::Determinate(Vec2::new(0.9 * RIGHT_WALL, 0.0)),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 20,
                     bullet_speed: 100.0,
@@ -418,7 +430,10 @@ impl WaveConfig {
                     ..default()
                 },
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.72 * RIGHT_WALL , 0.4 * TOP_WALL)),
+                    position: PositionConfig::Determinate(Vec2::new(
+                        0.72 * RIGHT_WALL,
+                        0.4 * TOP_WALL,
+                    )),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 40,
                     bullet_speed: 150.0,
@@ -426,7 +441,10 @@ impl WaveConfig {
                     ..default()
                 },
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.54 * RIGHT_WALL , 0.6 * TOP_WALL)),
+                    position: PositionConfig::Determinate(Vec2::new(
+                        0.54 * RIGHT_WALL,
+                        0.6 * TOP_WALL,
+                    )),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 80,
                     bullet_speed: 200.0,
@@ -434,7 +452,10 @@ impl WaveConfig {
                     ..default()
                 },
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.38 * RIGHT_WALL , 0.75 * TOP_WALL)),
+                    position: PositionConfig::Determinate(Vec2::new(
+                        0.38 * RIGHT_WALL,
+                        0.75 * TOP_WALL,
+                    )),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 120,
                     bullet_speed: 300.0,
@@ -442,7 +463,10 @@ impl WaveConfig {
                     ..default()
                 },
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.18 * RIGHT_WALL , 0.85 * TOP_WALL)),
+                    position: PositionConfig::Determinate(Vec2::new(
+                        0.18 * RIGHT_WALL,
+                        0.85 * TOP_WALL,
+                    )),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 160,
                     bullet_speed: 350.0,
@@ -450,7 +474,7 @@ impl WaveConfig {
                     ..default()
                 },
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.0 , 0.9 * TOP_WALL)),
+                    position: PositionConfig::Determinate(Vec2::new(0.0, 0.9 * TOP_WALL)),
                     bullet_direction: BulletDirectionConfig::Determinate(1.5 * PI),
                     hp: 200,
                     bullet_speed: 400.0,
@@ -458,7 +482,10 @@ impl WaveConfig {
                     ..default()
                 },
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.18 * LEFT_WALL , 0.85 * TOP_WALL)),
+                    position: PositionConfig::Determinate(Vec2::new(
+                        0.18 * LEFT_WALL,
+                        0.85 * TOP_WALL,
+                    )),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 160,
                     bullet_speed: 350.0,
@@ -466,7 +493,10 @@ impl WaveConfig {
                     ..default()
                 },
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.36 * LEFT_WALL , 0.75 * TOP_WALL)),
+                    position: PositionConfig::Determinate(Vec2::new(
+                        0.36 * LEFT_WALL,
+                        0.75 * TOP_WALL,
+                    )),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 120,
                     bullet_speed: 300.0,
@@ -474,7 +504,10 @@ impl WaveConfig {
                     ..default()
                 },
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.54 * LEFT_WALL , 0.6 * TOP_WALL)),
+                    position: PositionConfig::Determinate(Vec2::new(
+                        0.54 * LEFT_WALL,
+                        0.6 * TOP_WALL,
+                    )),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 80,
                     bullet_speed: 200.0,
@@ -482,7 +515,10 @@ impl WaveConfig {
                     ..default()
                 },
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.72 * LEFT_WALL , 0.4 * TOP_WALL)),
+                    position: PositionConfig::Determinate(Vec2::new(
+                        0.72 * LEFT_WALL,
+                        0.4 * TOP_WALL,
+                    )),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 40,
                     bullet_speed: 150.0,
@@ -490,15 +526,14 @@ impl WaveConfig {
                     ..default()
                 },
                 EnemyConfig {
-                    position: PositionConfig::Determinate(Vec2::new(0.9 * LEFT_WALL , 0.0)),
+                    position: PositionConfig::Determinate(Vec2::new(0.9 * LEFT_WALL, 0.0)),
                     bullet_direction: BulletDirectionConfig::Trace,
                     hp: 20,
                     bullet_speed: 100.0,
                     shooting_interval: 0.4,
                     ..default()
-                }
-            ]
-            ),
+                },
+            ]),
 
             //level 4
             (4, 0) => WaveConfig::Detailed(vec![
