@@ -18,7 +18,6 @@
 
 - 我们阅读了`Bevy`游戏引擎的相关文档，学习了其中基本的接口使用方法和`ECS`(Entity, Compenent, System)游戏开发逻辑。
 - 我们用2个月的时间完成了游戏的主体设计和开发，包括游戏的基本逻辑、图形界面、音效等。
-- 我们写了较为完备的注释并计划生成`doc`文件发布到网上以供潜在的合作者查阅，我们在github仓库上也写了`README.md`并提供`MIT License`以开源项目。
 - 我们利用`Bevy`引擎的支持，将游戏部署到了`GitHub Pages`上，使得用户可以直接通过浏览器访问游戏。
 
 ### `Bevy`游戏引擎
@@ -27,9 +26,15 @@
 
 ### 代码设计
 
-#### 页面切换逻辑
+概要地说，我们的游戏有以下几个界面：
 
-（徐陈皓）
+- 主菜单
+- 关卡选择界面
+- 游戏界面
+- 暂停界面
+- 结算界面
+
+接下来的报告将围绕这些界面和与其中的关键代码展开。
 
 #### 主菜单
 
@@ -110,165 +115,9 @@ pub enum MenuState {
 
 从这个 enum 的定义可以清晰地看出菜单的几个状态，即主菜单，关卡选择，设置，设置显示，设置声音，帮助和禁用状态。主菜单样式如图：
 
-![image-20240623143346139](./report.assets/image-20240623143346139.png)
+![image-20240623143346139](./images/image-20240623143346139.png)
 
-System `main_menu_setup` 会在 `Menustate` 变为 `Main` 状态时被 schedule，利用 `commands.spawn` 和一个 `asset_server` (用来加载图标等多媒体素材)，在屏幕中央渲染出菜单界面以及其中的各个按钮。菜单界面的层次结构是利用 spawn bundle 时的 parent-children 特性实现，在 spawn 一个 bundle 后，可以用 `.with_children(|parent| {...})` 传入一个closure，closure中可以继续用`parent.spawn` 生成子元素。例如上图中，最底层的背景板是一个 `NodeBundle`, 它的儿子是另一个`NodeBundle`即中间的红框，红框有五个儿子，分别是一个 `TextBundle` "Thunder" 和四个 `ButtonBundle`, 而四个 `ButtonBundle` 分别各有一个儿子 `TextBundle` 用来写对应的图标和文字。这种树形结构使得菜单的组织非常清晰。由此就可以写出如下的代码：
-
-```rust
-pub fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Common style for all buttons on the screen
-    let button_style = Style {
-        width: Val::Px(250.0),
-        height: Val::Px(65.0),
-        margin: UiRect::all(Val::Px(20.0)),
-        justify_content: JustifyContent::Center,
-        align_items: AlignItems::Center,
-        ..default()
-    };
-    let button_icon_style = Style {
-        width: Val::Px(30.0),
-        // This takes the icons out of the flexbox flow, to be positioned exactly
-        position_type: PositionType::Absolute,
-        // The icon will be close to the left border of the button
-        left: Val::Px(10.0),
-        ..default()
-    };
-    let button_text_style = TextStyle {
-        font_size: 40.0,
-        color: TEXT_COLOR,
-        ..default()
-    };
-
-    commands
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    ..default()
-                },
-                ..default()
-            },
-            OnMainMenuScreen,
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn(NodeBundle {
-                    style: Style {
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                    background_color: Color::CRIMSON.into(),
-                    ..default()
-                })
-                .with_children(|parent| {
-                    // Display the game name
-                    parent.spawn(
-                        TextBundle::from_section(
-                            "Thunder",
-                            TextStyle {
-                                font_size: 80.0,
-                                color: TEXT_COLOR,
-                                ..default()
-                            },
-                        )
-                        .with_style(Style {
-                            margin: UiRect::all(Val::Px(50.0)),
-                            ..default()
-                        }),
-                    );
-
-                    // Display three buttons for each action available from the main menu:
-                    // - new game
-                    // - settings
-                    // - help
-                    // - quit
-                    parent
-                        .spawn((
-                            ButtonBundle {
-                                style: button_style.clone(),
-                                background_color: NORMAL_BUTTON.into(),
-                                ..default()
-                            },
-                            MenuButtonAction::SelectLevel,
-                        ))
-                        .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/right.png");
-                            parent.spawn(ImageBundle {
-                                style: button_icon_style.clone(),
-                                image: UiImage::new(icon),
-                                ..default()
-                            });
-                            parent.spawn(TextBundle::from_section(
-                                "New Game",
-                                button_text_style.clone(),
-                            ));
-                        });
-                    parent
-                        .spawn((
-                            ButtonBundle {
-                                style: button_style.clone(),
-                                background_color: NORMAL_BUTTON.into(),
-                                ..default()
-                            },
-                            MenuButtonAction::Settings,
-                        ))
-                        .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/wrench.png");
-                            parent.spawn(ImageBundle {
-                                style: button_icon_style.clone(),
-                                image: UiImage::new(icon),
-                                ..default()
-                            });
-                            parent.spawn(TextBundle::from_section(
-                                "Settings",
-                                button_text_style.clone(),
-                            ));
-                        });
-                    parent
-                        .spawn((
-                            ButtonBundle {
-                                style: button_style.clone(),
-                                background_color: NORMAL_BUTTON.into(),
-                                ..default()
-                            },
-                            MenuButtonAction::GoToHelp,
-                        ))
-                        .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/help.png");
-                            parent.spawn(ImageBundle {
-                                style: button_icon_style.clone(),
-                                image: UiImage::new(icon),
-                                ..default()
-                            });
-                            parent
-                                .spawn(TextBundle::from_section("Help", button_text_style.clone()));
-                        });
-                    parent
-                        .spawn((
-                            ButtonBundle {
-                                style: button_style,
-                                background_color: NORMAL_BUTTON.into(),
-                                ..default()
-                            },
-                            MenuButtonAction::Quit,
-                        ))
-                        .with_children(|parent| {
-                            let icon = asset_server.load("textures/Game Icons/exitRight.png");
-                            parent.spawn(ImageBundle {
-                                style: button_icon_style,
-                                image: UiImage::new(icon),
-                                ..default()
-                            });
-                            parent.spawn(TextBundle::from_section("Exit", button_text_style));
-                        });
-                });
-        });
-}
-```
+System `main_menu_setup` 会在 `Menustate` 变为 `Main` 状态时被 schedule，利用 `commands.spawn` 和一个 `asset_server` (用来加载图标等多媒体素材)，在屏幕中央渲染出菜单界面以及其中的各个按钮。菜单界面的层次结构是利用 spawn bundle 时的 parent-children 特性实现，在 spawn 一个 bundle 后，可以用 `.with_children(|parent| {...})` 传入一个closure，closure中可以继续用`parent.spawn` 生成子元素。例如上图中，最底层的背景板是一个 `NodeBundle`, 它的儿子是另一个`NodeBundle`即中间的红框，红框有五个儿子，分别是一个 `TextBundle` "Thunder" 和四个 `ButtonBundle`, 而四个 `ButtonBundle` 分别各有一个儿子 `TextBundle` 用来写对应的图标和文字。这种树形结构使得菜单的组织非常清晰。
 
 Button 被点击之后的跳转也是通过若干个 system 实现，他们监听按钮交互事件并对`MenuState` 和 `GameState` 作出相应的修改，从而使游戏在 State Machine 上移动。例如 `menu_action` 是对主菜单各按钮点击交互的处理：
 
@@ -317,7 +166,7 @@ fn menu_action(
 
 在主菜单中点击 New Game 会进入关卡选择界面。
 
-![image-20240623154431320](./report.assets/image-20240623154431320.png)
+![image-20240623154431320](./images/image-20240623154431320.png)
 
 关卡的实现机制是定义了一个全局的 resource：
 
@@ -378,7 +227,7 @@ enum WinLoseScreenState {
 }
 ```
 
-![Win](./report.assets/Win.png)
+![Win](./images/Win.png)
 
 通过监控游戏中的Player血量以及剩余的敌人数量来判定游戏的输赢(`GameState::Win`)，`Retry`按钮进入`WinLoseScreenState::Restart`，`NextLevel`会进入`WinLoseScreenState::NextLevel`，进而调用system`next_level`更新关卡参数`level_setting`进入下一关(最后一关进行特判确定是否通过所有关卡`GameState::Completion`)。
 
@@ -427,7 +276,7 @@ enum EscMenuState {
 
 在暂停菜单中，我们提供了四个选项：返回游戏`Continue`，返回主菜单`Home`，帮助`Help`和退出游戏`Exit`。具体界面如下：
 
-![Pause](./report.assets/Pause.png)
+![Pause](./images/Pause.png)
 
 和主界面逻辑类似，在进入`GameState::Stopped`后会调用`esc_menu_setup`将`EscMenuState`设置成`MainEscMenu`，进而调用`esc_main_menu_setup`。使用`commands.spawn` 和`asset_server` (用来加载图标等多媒体素材)，在屏幕中央渲染出菜单界面以及其中的各个按钮。层次结构是利用 `spawn bundle` 时的 `parent-children` 特性实现。详细代码较为复杂，不在报告中展示，可以详参源码。
 
@@ -471,7 +320,7 @@ fn esc_menu_action(
 
 （吴悦天&徐陈皓）
 
-![image-20240623155022954](./report.assets/image-20240623155022954.png)
+![image-20240623155022954](./images/image-20240623155022954.png)
 
 Thunder 的游戏逻辑在 `game` 模块中实现，`game.rs` 实现了一个插件 `game_plugin`：
 
@@ -536,13 +385,29 @@ pub fn game_plugin(app: &mut App) {
 
 ### 网页端的开发与部署
 
+`Rust`支持`WebAssembly`技术，即可以直接将`Rust`代码编译为`WebAssembly`代码。再利用`wasm-bindgen`工具，我们可以生成配套的`JavaScript`代码，套上`html`与`css`即可在主流浏览器中运行。我们将这套流程固化到`Makefile`中，只需要运行`make win-web/linux-web`即可生成`Web`版本的游戏。
 
+```bash
+linux-web:
+	cargo build --release --target wasm32-unknown-unknown
+	wasm-bindgen --no-typescript --target web --out-dir ./docs/ --out-name "thunder" ./target/wasm32-unknown-unknown/release/thunder.wasm
+	cp -r assets docs
+```
 
-游戏的网页端使用`GitHub Pages`部署，我们在`GitHub`仓库的`Settings`中找到`GitHub Pages`选项，将`Source`设置为`master`分支中的，这样就可以通过`https://bucket-xv.github.io/Thunder-in-Rust/`访问我们的游戏。
+游戏的网页端使用`GitHub Pages`部署，我们在`GitHub`仓库的`Settings`中找到`GitHub Pages`选项，将`Source`设置为`master`分支中的`docs`文件夹，这样就可以通过`https://bucket-xv.github.io/Thunder-in-Rust/`访问我们的游戏。
 
 ### 项目开发过程
 
+本项目从3月31日建立github仓库开始到开发结束历时约三个月，我们的开发过程主要分为以下几个阶段：
+
+1. 框架搭建：我们首先学习了`Bevy`游戏引擎的基本使用方法与`ECS`的游戏开发逻辑。然后搭建了只包含主菜单和游戏界面的基本框架。
+2. 游戏设计与主要功能开发：在此框架上，小组成员进行了分工开发，分别完成了关卡选择界面、暂停界面、结算界面、游戏机制等的开发。
+3. 数值调整与动画：最后阶段，为了增加游戏的可玩性与吸引力，我们对游戏中的数值进行了精心调整，也对每一关分别做了设计。此外，我们还对游戏中的飞机做了动画。
+
 ### 项目展望
+
+- 我们在github仓库上已经写了`README.md`并提供`MIT License`以开源项目。之后我们计划将注释补充完整并生成`doc`文件发布到网上以供潜在的合作者查阅。如有可能，可以打包该`crate`发布到`crate.io`上。
+- 我们的游戏目前没有局外系统，也就是无法记录玩家已经通过的关卡与最高分数。这主要是为了`Web`版与本地版本的通用性而暂且搁置这一功能。之后我们计划在网页端通过`cookie`的方式保存玩家的游戏记录，在本地端则用文件方式保存。
 
 ## 个人照片
 
