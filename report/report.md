@@ -234,6 +234,36 @@ pub fn game_plugin(app: &mut App) {
 5. 更新计分板（`update_scoreboard,update_hpboard,update_laserboard,`）。根据击杀敌机的数量和玩家飞机剩下的血量更新左上角的计分板。
 6. 其他功能函数，例如检测是否进入下一波敌机（`check_for_next_wave`），清除上一帧的激光（`clear_laser`）等。
 
+#### 游戏内动画
+
+上一章节中的游戏界面截取自较老的版本。我们后面又采用了网上的素材，为飞机实现了动态贴图。我们采取的方案（实现在 `anime.rs` 中）是使用逐帧剪影的方式，每一帧是一幅 $96 \times 96$​​ 大小的图片，每个动画的所有帧整合为一个文件，并采用 `setup_anime_periodical` 函数进行读取和解析。
+
+这是玩家控制的飞机的逐帧剪影：
+
+<img src="images/player_texture.png" alt="Texture" width=400>
+
+使用以下函数可以使 `SpriteSheetBundle` 类型的逐帧动画以某个周期播放。
+
+```rust
+pub fn animate_sprite(
+    time: Res<Time>,
+    mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut TextureAtlas)>,
+) {
+    for (indices, mut timer, mut atlas) in &mut query {
+        timer.tick(time.delta());
+        if timer.just_finished() {
+            atlas.index = if atlas.index == indices.last {
+                indices.first
+            } else {
+                atlas.index + 1
+            };
+        }
+    }
+}
+```
+
+~~子弹击中敌机时，应当伴随一些爆炸等粒子效果。我们制作了部分粒子效果的逐帧剪影，但还未实装入游戏。~~
+
 ### 网页端的开发与部署
 
 `Rust`支持`WebAssembly`技术，即可以直接将`Rust`代码编译为`WebAssembly`代码。再利用`wasm-bindgen`工具，我们可以生成配套的`JavaScript`代码，套上`html`与`css`即可在主流浏览器中运行。我们将这套流程固化到`Makefile`中，只需要运行`make win-web/linux-web`即可生成`Web`版本的游戏。
