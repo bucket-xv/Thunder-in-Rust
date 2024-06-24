@@ -14,13 +14,13 @@
 
 ### 概览
 
-我们用`Rust`重制了雷电战机这个经典游戏。我们的游戏基于`Bevy`游戏引擎开发，支持`Web`和`本地开发`两种版本。概要地说，我们为这个项目做了以下工作：
+我们用`Rust`重制了雷电战机这个经典游戏，历时约三个月，共4000+行`Rust`代码。它基于`Bevy`游戏引擎开发，支持`Web`和`本地开发`两种版本。概要地说，我们为这个项目做了以下工作：
 
 - 我们阅读了`Bevy`游戏引擎的相关文档，学习了其中基本的接口使用方法和`ECS`(Entity, Compenent, System)游戏开发逻辑。
-- 我们用2个月的时间完成了游戏的主体设计和开发，包括游戏的基本逻辑、图形界面、音效等。
+- 我们完成了游戏的主体设计和开发，包括游戏的基本逻辑、图形界面、音效等。
 - 我们利用`Bevy`引擎的支持，将游戏部署到了`GitHub Pages`上，使得用户可以直接通过浏览器访问游戏。
 
-### `Bevy`游戏引擎
+### 背景：`Bevy`游戏引擎
 
 （胡宇阳）
 
@@ -34,7 +34,7 @@
 - 暂停界面
 - 结算界面
 
-接下来的报告将围绕这些界面和与其中的关键代码展开。
+接下来的报告将围绕这些界面中的关键代码展开。
 
 #### 主菜单
 
@@ -113,54 +113,42 @@ pub enum MenuState {
 }
 ```
 
-从这个 enum 的定义可以清晰地看出菜单的几个状态，即主菜单，关卡选择，设置，设置显示，设置声音，帮助和禁用状态。主菜单样式如图：
+从这个 enum 的定义可以清晰地看出菜单的几个状态，即主菜单，关卡选择，设置，设置显示，设置声音，帮助和禁用状态。
+主菜单样式如图：
 
 ![image-20240623143346139](./images/image-20240623143346139.png)
 
-System `main_menu_setup` 会在 `Menustate` 变为 `Main` 状态时被 schedule，利用 `commands.spawn` 和一个 `asset_server` (用来加载图标等多媒体素材)，在屏幕中央渲染出菜单界面以及其中的各个按钮。菜单界面的层次结构是利用 spawn bundle 时的 parent-children 特性实现，在 spawn 一个 bundle 后，可以用 `.with_children(|parent| {...})` 传入一个closure，closure中可以继续用`parent.spawn` 生成子元素。例如上图中，最底层的背景板是一个 `NodeBundle`, 它的儿子是另一个`NodeBundle`即中间的红框，红框有五个儿子，分别是一个 `TextBundle` "Thunder" 和四个 `ButtonBundle`, 而四个 `ButtonBundle` 分别各有一个儿子 `TextBundle` 用来写对应的图标和文字。这种树形结构使得菜单的组织非常清晰。
+System `main_menu_setup` 会在 `Menustate` 变为 `Main` 状态时运行，利用 `commands.spawn` 和一个 `asset_server` (用来加载图标等多媒体素材)，在屏幕中央渲染出菜单界面以及其中的各个按钮。菜单界面的层次结构是利用 spawn bundle 时的 parent-children 特性实现，在 spawn 一个 bundle 后，可以用 `.with_children(|parent| {...})` 传入一个closure，closure中可以继续用`parent.spawn` 生成子元素。例如上图中，最底层的背景板是一个 `NodeBundle`, 它的儿子是另一个`NodeBundle`即中间的红框，红框有五个儿子，分别是一个 `TextBundle` "Thunder" 和四个 `ButtonBundle`, 而四个 `ButtonBundle` 分别各有一个儿子 `TextBundle` 用来写对应的图标和文字。这种树形结构使得菜单的组织非常清晰。
 
 Button 被点击之后的跳转也是通过若干个 system 实现，他们监听按钮交互事件并对`MenuState` 和 `GameState` 作出相应的修改，从而使游戏在 State Machine 上移动。例如 `menu_action` 是对主菜单各按钮点击交互的处理：
 
 ```rust
-fn menu_action(
-    interaction_query: Query<
-        (&Interaction, &MenuButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut app_exit_events: EventWriter<AppExit>,
-    mut menu_state: ResMut<NextState<MenuState>>,
-) {
-    for (interaction, menu_button_action) in &interaction_query {
-        if *interaction == Interaction::Pressed {
-            match menu_button_action {
-                MenuButtonAction::Quit => {
-                    app_exit_events.send(AppExit);
-                }
-                MenuButtonAction::SelectLevel => {
-                    menu_state.set(MenuState::Levels);
-                }
-                MenuButtonAction::Settings => menu_state.set(MenuState::Settings),
-                MenuButtonAction::SettingsDisplay => {
-                    menu_state.set(MenuState::SettingsDisplay);
-                }
-                MenuButtonAction::SettingsSound => {
-                    menu_state.set(MenuState::SettingsSound);
-                }
-                MenuButtonAction::BackToMainMenu => menu_state.set(MenuState::Main),
-                MenuButtonAction::BackToSettings => {
-                    menu_state.set(MenuState::Settings);
-                }
-                MenuButtonAction::GoToHelp => {
-                    menu_state.set(MenuState::Help);
-                }
-            }
+fn menu_action(...) {
+    ...
+    match menu_button_action {
+        MenuButtonAction::Quit => {
+            app_exit_events.send(AppExit);
+        }
+        MenuButtonAction::SelectLevel => {
+            menu_state.set(MenuState::Levels);
+        }
+        MenuButtonAction::Settings => menu_state.set(MenuState::Settings),
+        MenuButtonAction::SettingsDisplay => {
+            menu_state.set(MenuState::SettingsDisplay);
+        }
+        MenuButtonAction::SettingsSound => {
+            menu_state.set(MenuState::SettingsSound);
+        }
+        MenuButtonAction::BackToMainMenu => menu_state.set(MenuState::Main),
+        MenuButtonAction::BackToSettings => {
+            menu_state.set(MenuState::Settings);
+        }
+        MenuButtonAction::GoToHelp => {
+            menu_state.set(MenuState::Help);
         }
     }
 }
-
 ```
-
-由于菜单部分细节较多，实现也较为繁琐（800+ 行rust），报告中只介绍这些核心实现思想和方法，更加具体的实现请参考源代码及其中的注释。
 
 #### 关卡选择
 
@@ -278,110 +266,76 @@ enum EscMenuState {
 
 ![Pause](./images/Pause.png)
 
-和主界面逻辑类似，在进入`GameState::Stopped`后会调用`esc_menu_setup`将`EscMenuState`设置成`MainEscMenu`，进而调用`esc_main_menu_setup`。使用`commands.spawn` 和`asset_server` (用来加载图标等多媒体素材)，在屏幕中央渲染出菜单界面以及其中的各个按钮。层次结构是利用 `spawn bundle` 时的 `parent-children` 特性实现。详细代码较为复杂，不在报告中展示，可以详参源码。
+和主界面逻辑类似，在进入`GameState::Stopped`后会调用`esc_menu_setup`将`EscMenuState`设置成`MainEscMenu`，进而调用`esc_main_menu_setup`。使用`commands.spawn` 和`asset_server` (用来加载图标等多媒体素材)，在屏幕中央渲染出菜单界面以及其中的各个按钮。层次结构是利用 `spawn bundle` 时的 `parent-children` 特性实现。详细代码较为复杂，不在报告中展示。
 
-Button 被点击之后的跳转也是通过若干个 system 实现，监听按钮交互事件并对`EscMenuState` 和 `EscGameState`和`GameState` 作出相应的修改，由此相应的游戏跳转逻辑，详细代码见下:
+Button 被点击之后的跳转也是通过若干个 system 实现，监听按钮交互事件并对`EscMenuState` 和 `EscGameState`和`GameState` 作出相应的修改，由此相应的游戏跳转逻辑，代码见下:
 
 ```rust
-fn esc_menu_action(
-    interaction_query: Query<
-        (&Interaction, &EscMenuButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut app_exit_events: EventWriter<AppExit>,
-    mut esc_menu_state: ResMut<NextState<EscMenuState>>,
-    // mut state: ResMut<NextState<GameState>>,
-) {
-    for (interaction, esc_menu_button_action) in &interaction_query {
-        if *interaction == Interaction::Pressed {
-            match esc_menu_button_action {
-                EscMenuButtonAction::Quit => {
-                    app_exit_events.send(AppExit);
-                }
-                EscMenuButtonAction::BackToMainMenu => {
-                    esc_menu_state.set(EscMenuState::BackToMainMenu);
-                }
-                EscMenuButtonAction::BackToGame => {
-                    esc_menu_state.set(EscMenuState::BackToGame);
-                }
-                EscMenuButtonAction::GoToHelp => {
-                    esc_menu_state.set(EscMenuState::Help);
-                }
-                EscMenuButtonAction::BackToEscMenu => {
-                    esc_menu_state.set(EscMenuState::MainEscMenu);
-                }
-            }
-        }
+match esc_menu_button_action {
+    EscMenuButtonAction::Quit => {
+        app_exit_events.send(AppExit);
+    }
+    EscMenuButtonAction::BackToMainMenu => {
+        esc_menu_state.set(EscMenuState::BackToMainMenu);
+    }
+    EscMenuButtonAction::BackToGame => {
+        esc_menu_state.set(EscMenuState::BackToGame);
+    }
+    EscMenuButtonAction::GoToHelp => {
+        esc_menu_state.set(EscMenuState::Help);
+    }
+    EscMenuButtonAction::BackToEscMenu => {
+        esc_menu_state.set(EscMenuState::MainEscMenu);
     }
 }
 ```
 
 #### 游戏逻辑
 
-（吴悦天&徐陈皓）
+游戏界面：
 
 ![image-20240623155022954](./images/image-20240623155022954.png)
 
-Thunder 的游戏逻辑在 `game` 模块中实现，`game.rs` 实现了一个插件 `game_plugin`：
+Thunder 的游戏逻辑在 `game` 模块中实现，这也是最核心的一个模块。`game.rs` 实现了一个插件 `game_plugin`，其核心代码如下：
 
 ```rust
 // This plugin will contain the game. It will focus on the state `GameState::Game`
 pub fn game_plugin(app: &mut App) {
-    app.add_systems(OnEnter(GameState::Init), game_setup)
-        .add_event::<HittingEvent>()
-        .add_systems(OnEnter(GameState::Game), setup_laser)
-        // Add our gameplay simulation systems to the fixed timestep schedule
-        // which runs at 64 Hz by default
-        .add_systems(
-            FixedUpdate,
-            (
-                generate_enemy,
-                shoot_gun,
-                apply_velocity,
-                clear_laser,
-                move_player_plane,
-                shoot_laser,
-                check_for_bullet_hitting,
-                check_for_laserray_hitting,
-                check_for_laser_star_capture,
-                play_hitting_sound,
-                update_scoreboard,
-                update_hpboard,
-                update_laserboard,
-                check_for_next_wave,
-                add_laser_star,
-                remove_laser_star,
-            )
-                // `chain`ing systems together runs them in order
-                .chain()
-                .run_if(in_state(GameState::Game)),
+    // omit some details
+    app.add_systems(
+        FixedUpdate,
+        (
+            generate_enemy,
+            shoot_gun,
+            apply_velocity,
+            clear_laser,
+            move_player_plane,
+            shoot_laser,
+            check_for_bullet_hitting,
+            check_for_laserray_hitting,
+            check_for_laser_star_capture,
+            play_hitting_sound,
+            update_scoreboard,
+            update_hpboard,
+            update_laserboard,
+            check_for_next_wave,
+            add_laser_star,
+            remove_laser_star,
         )
-        .add_systems(
-            Update,
-            (button_system, game_menu_action, back_on_esc).run_if(in_state(GameState::Game)),
-        )
-        .add_systems(
-            OnEnter(GameState::Menu),
-            (despawn_screen::<OnGameScreen>, restore_background),
-        )
-        .add_systems(
-            OnEnter(GameState::Win),
-            (despawn_screen::<OnGameScreen>, restore_background),
-        )
-        .add_systems(
-            OnEnter(GameState::Lose),
-            (despawn_screen::<OnGameScreen>, restore_background),
-        )
-        .add_systems(
-            OnEnter(GameState::Completion),
-            (despawn_screen::<OnGameScreen>, restore_background),
-        );
+            // `chain`ing systems together runs them in order
+            .chain()
+            .run_if(in_state(GameState::Game)),
+    )
 }
 ```
 
-其中实现核心逻辑的是每一帧更新时执行的一系列 systems……
+从中可以看出，在每一帧刷新时，`game_plugin`将会依次执行`generate_enemy,shoot_gun,apply_velocity,clear_laser,move_player_plane...`等一系列函数。也就是说，该`plugin`在每帧刷新时将会：
 
-另一种武器是激光 laser，其对应的“子弹”为”镭射“ laser ray。和普通子弹不同的是，激光镭射是触发时立刻打出一个矩形向上方射出，该矩形延伸至上方边界，并会对矩形内部所有敌机产生伤害。
+1. 生成敌人。敌人的具体配置由`game/config.rs`决定，不同的关卡和不同波次会有很大的区别。
+2. 武器发射子弹。一种武器是加特林机枪，它会向前打出连续的子弹。另一种武器是激光，他会打出镭射。和子弹不同的是，激光镭射是触发时立刻打出一个矩形向上方射出，该矩形延伸至上方边界，并会对矩形内部所有敌机产生伤害。
+3. 处理移动。无论是敌机还是玩家飞机，都需要根据速度和方向进行移动。敌机的速度由配置给出，而玩家的速度由键盘输入决定。
+4. 碰撞检测。检测子弹和飞机的碰撞，以及激光和飞机的碰撞。如果发生碰撞，会根据配置给出的伤害值对应飞机的生命值。
+5. 更新计分板。根据击杀敌机的数量和玩家飞机剩下的血量更新左上角的计分板。
 
 ### 网页端的开发与部署
 
@@ -403,6 +357,8 @@ linux-web:
 1. 框架搭建：我们首先学习了`Bevy`游戏引擎的基本使用方法与`ECS`的游戏开发逻辑。然后搭建了只包含主菜单和游戏界面的基本框架。
 2. 游戏设计与主要功能开发：在此框架上，小组成员进行了分工开发，分别完成了关卡选择界面、暂停界面、结算界面、游戏机制等的开发。
 3. 数值调整与动画：最后阶段，为了增加游戏的可玩性与吸引力，我们对游戏中的数值进行了精心调整，也对每一关分别做了设计。此外，我们还对游戏中的飞机做了动画。
+
+分阶段开发是必要的，因为开发框架时，需要比较明确的规划设计。对业余的小型工程而言，最好由单人或双人开发，以保证规划的前后一致性。而到了主要功能开发的时候，任务相对独立，可以并行进行以提高开发效率。数值调整和动画是收尾工作，无法在游戏功能齐备之前进行，但也是游戏可玩性与吸引力的最重要保证。
 
 ### 项目展望
 
