@@ -1,8 +1,7 @@
 use super::*;
-use crate::animes::setup_player;
+use crate::animes::setup_anime_periodical;
 use crate::animes::{AnimationIndices, AnimationTimer};
 use crate::game::config::{EnemyConfig, WaveConfig};
-use bevy_spritesheet_animation::prelude::SpritesheetLibrary;
 use core::f32::consts::PI;
 
 // use bevy_rand::prelude::GlobalEntropy;
@@ -10,7 +9,6 @@ use core::f32::consts::PI;
 // use rand::{thread_rng, Rng};
 
 pub fn gen_user_plane(
-    library: ResMut<SpritesheetLibrary>,
     atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     asset_server: Res<AssetServer>,
     level: u32,
@@ -18,8 +16,7 @@ pub fn gen_user_plane(
     // let plane_y = BOTTOM_WALL + GAP_BETWEEN_PLANE_AND_WALL;
     (
         Plane,
-        setup_player(
-            library,
+        setup_anime_periodical(
             atlas_layouts,
             asset_server,
             "textures/entities/player.png".to_string(),
@@ -91,6 +88,7 @@ fn gen_enemy(
     //     .gen_range(LEFT_WALL + GAP_BETWEEN_PLANE_AND_WALL..RIGHT_WALL - GAP_BETWEEN_PLANE_AND_WALL);
     // let plane_y = TOP_WALL - GAP_BETWEEN_PLANE_AND_WALL;
     (
+        Plane,
         SpriteSheetBundle {
             transform: Transform {
                 translation: enemy_config.position.gen().extend(0.0),
@@ -103,7 +101,8 @@ fn gen_enemy(
             },
             ..default()
         },
-        Plane,
+        AnimationIndices { first: 0, last: 0 },
+        AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
         GatlingGun {
             bullet_config: BulletConfig {
                 color: enemy_config.color,
@@ -121,8 +120,6 @@ fn gen_enemy(
         AttackTarget,
         OnGameScreen,
         HP(enemy_config.hp),
-        AnimationIndices { first: 0, last: 0 },
-        AnimationTimer(Timer::from_seconds(2000000000.0, TimerMode::Repeating)),
         Enemy,
         Velocity(Vec2::ZERO),
         VelocityController(

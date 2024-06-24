@@ -18,7 +18,6 @@ use bevy::{
     prelude::*,
     sprite::MaterialMesh2dBundle,
 };
-use bevy_spritesheet_animation::prelude::SpritesheetLibrary;
 use config::MovingMode;
 use core::f32::consts::PI;
 use laser::{add_laser_star, remove_laser_star};
@@ -199,7 +198,6 @@ fn game_menu_action(
 // Add the game's entities to our world
 fn game_setup(
     mut commands: Commands,
-    library: ResMut<SpritesheetLibrary>,
     atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut game_state: ResMut<NextState<GameState>>,
     // mut meshes: ResMut<Assets<Mesh>>,
@@ -225,7 +223,7 @@ fn game_setup(
     commands.insert_resource(HittingSound(hitting_sound));
 
     // Player Plane
-    let user_plane = generator::gen_user_plane(library, atlas_layouts, asset_server, level.0);
+    let user_plane = generator::gen_user_plane(atlas_layouts, asset_server, level.0);
     commands.spawn(user_plane);
 
     // Scoreboard
