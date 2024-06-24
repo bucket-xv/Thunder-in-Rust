@@ -571,7 +571,7 @@ fn control_velocity(mut query: Query<(&mut Velocity, &mut VelocityController)>, 
         if controller.1.tick(time.delta()).finished() {
             let mode = controller.0.pop_front().unwrap();
             *velocity = mode.velocity;
-            controller.1.reset();
+            controller.1 = Timer::from_seconds(mode.time, TimerMode::Once);
             controller.0.push_back(mode);
         }
     }
