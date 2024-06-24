@@ -4,10 +4,13 @@ use bevy::{
     sprite::MaterialMesh2dBundle,
 };
 
-use super::{
-    config::PositionConfig, AttackTarget, HittingEvent, OnGameScreen, Player, Scoreboard,
-    BOTTOM_WALL, GAP_BETWEEN_PLANE_AND_WALL, HP, LEFT_WALL, RIGHT_WALL, TOP_WALL, WALL_THICKNESS, HARM_LASER 
-};
+use super::*;
+// use super::{
+//     config::PositionConfig, AttackTarget, HittingEvent, OnGameScreen, Player, Scoreboard,
+//     BOTTOM_WALL, GAP_BETWEEN_PLANE_AND_WALL, HARM_LASER, HP, LEFT_WALL, RIGHT_WALL, TOP_WALL,
+//     WALL_THICKNESS,
+// };
+use crate::game::config::PositionConfig;
 
 use crate::Level;
 
@@ -39,10 +42,7 @@ pub(super) struct LaserStarGenerateTimer(Timer);
 #[derive(Resource)]
 pub(super) struct LaserStarVanishTimer(Timer);
 
-pub(super) fn setup_laser(
-    mut commands: Commands,
-    level: Res<Level>,
-) {
+pub(super) fn setup_laser(mut commands: Commands, level: Res<Level>) {
     commands.insert_resource(LaserAttackTimer(Timer::from_seconds(
         0.1,
         TimerMode::Repeating,
@@ -51,7 +51,7 @@ pub(super) fn setup_laser(
         match level.0 {
             1 => 100000.0,
             2 => 5.0,
-            _ => 8.0
+            _ => 8.0,
         },
         TimerMode::Repeating,
     )));
@@ -194,7 +194,7 @@ fn gen_laser_star(asset_server: Res<AssetServer>) -> impl Bundle {
                     ),
                     Vec2::new(
                         BOTTOM_WALL + GAP_BETWEEN_PLANE_AND_WALL,
-                        TOP_WALL - GAP_BETWEEN_PLANE_AND_WALL,
+                        TOP_WALL - GAP_BETWEEN_PLANE_AND_WALL - PLANE_TOP_WALL_PADDING,
                     ),
                 )
                 .gen()

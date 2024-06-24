@@ -53,6 +53,7 @@ const LEFT_WALL: f32 = -RIGHT_WALL;
 // y coordinates
 const TOP_WALL: f32 = 300.;
 const BOTTOM_WALL: f32 = -TOP_WALL;
+const PLANE_TOP_WALL_PADDING: f32 = GAP_BETWEEN_PLANE_AND_WALL * 3.0;
 
 const SCOREBOARD_FONT_SIZE: f32 = 40.0;
 const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
@@ -558,7 +559,11 @@ fn move_player_plane(
     let left_bound = LEFT_WALL + WALL_THICKNESS / 2.0 + PLANE_SIZE.x / 2.0 + PLANE_PADDING;
     let right_bound = RIGHT_WALL - WALL_THICKNESS / 2.0 - PLANE_SIZE.x / 2.0 - PLANE_PADDING;
     let down_bound = BOTTOM_WALL + WALL_THICKNESS / 2.0 + PLANE_SIZE.x / 2.0 + PLANE_PADDING;
-    let up_bound = TOP_WALL - WALL_THICKNESS / 2.0 - PLANE_SIZE.x / 2.0 - PLANE_PADDING;
+    let up_bound = TOP_WALL
+        - WALL_THICKNESS / 2.0
+        - PLANE_SIZE.x / 2.0
+        - PLANE_PADDING
+        - PLANE_TOP_WALL_PADDING;
 
     plane_transform.translation = new_plane_position.clamp(
         Vec3::new(left_bound, down_bound, 0.0),
