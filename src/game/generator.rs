@@ -9,7 +9,7 @@ use core::f32::consts::PI;
 // use rand::{thread_rng, Rng};
 
 pub fn gen_user_plane(
-    atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     asset_server: Res<AssetServer>,
     level: u32,
 ) -> impl Bundle {
@@ -17,17 +17,17 @@ pub fn gen_user_plane(
     (
         Plane,
         setup_anime_periodical(
-            atlas_layouts,
-            asset_server,
+            &mut atlas_layouts,
+            &asset_server,
             "textures/entities/player.png".to_string(),
-            9,
+            8,
         ),
         HP(match level {
             1 => 100,
             2 => 400,
             _ => PLAYER_PLANE_HP,
         }),
-        AnimationIndices { first: 0, last: 8 },
+        AnimationIndices { first: 0, last: 7 },
         AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
         OnGameScreen,
         GatlingGun {
@@ -66,21 +66,28 @@ pub fn gen_user_plane(
     )
 }
 
-pub fn gen_wave(level: u32, wave: u32) -> Vec<impl Bundle> {
+pub fn gen_wave(
+    atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
+    asset_server: &Res<AssetServer>,
+    level: u32, 
+    wave: u32,
+) -> Vec<impl Bundle> {
     let config = WaveConfig::get(level, wave);
     match config {
         WaveConfig::Duplicate(enemy_config, enemy_num) => (0..enemy_num)
-            .map(|_| gen_enemy(enemy_config.clone()))
+            .map(|_| gen_enemy(atlas_layouts, asset_server, enemy_config.clone()))
             .collect(),
 
         WaveConfig::Detailed(enemy_configs) => enemy_configs
             .into_iter()
-            .map(|enemy_config| gen_enemy(enemy_config))
+            .map(|enemy_config| gen_enemy(atlas_layouts, asset_server, enemy_config))
             .collect(),
     }
 }
 
 fn gen_enemy(
+    atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
+    asset_server: &Res<AssetServer>,
     enemy_config: EnemyConfig,
     // mut _rng: &mut ResMut<GlobalEntropy<WyRand>>,
 ) -> impl Bundle {
@@ -89,19 +96,13 @@ fn gen_enemy(
     // let plane_y = TOP_WALL - GAP_BETWEEN_PLANE_AND_WALL;
     (
         Plane,
-        SpriteSheetBundle {
-            transform: Transform {
-                translation: enemy_config.position.gen().extend(0.0),
-                scale: enemy_config.scale.extend(0.0),
-                ..default()
-            },
-            sprite: Sprite {
-                color: enemy_config.color,
-                ..default()
-            },
-            ..default()
-        },
-        AnimationIndices { first: 0, last: 0 },
+        setup_anime_periodical(
+            atlas_layouts,
+            asset_server,
+            "textures/entities/enemy.png".to_string(),
+            32,
+        ),
+        AnimationIndices { first: 0, last: 31 },
         AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
         GatlingGun {
             bullet_config: BulletConfig {

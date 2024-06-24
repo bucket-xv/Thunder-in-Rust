@@ -32,8 +32,8 @@ pub fn animate_sprite(
 }
 
 pub fn setup_anime_periodical(
-    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
-    assets: Res<AssetServer>,
+    atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
+    assets: &Res<AssetServer>,
     texture_dir: String,
     number_of_frames: usize,
 ) -> SpriteSheetBundle {

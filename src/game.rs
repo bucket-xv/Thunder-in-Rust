@@ -508,6 +508,8 @@ struct HpboardUi;
 
 fn generate_enemy(
     mut commands: Commands,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    asset_server: Res<AssetServer>,
     time: Res<Time>,
     mut timer: ResMut<EnemyGenerateTimer>,
     wave: ResMut<Wave>,
@@ -517,7 +519,7 @@ fn generate_enemy(
     if timer.tick(time.delta()).just_finished() {
         timer.0.reset();
         timer.0.pause();
-        let vec = generator::gen_wave(level.0, wave.0);
+        let vec = generator::gen_wave(&mut atlas_layouts, &asset_server, level.0, wave.0);
         for plane in vec {
             commands.spawn(plane);
         }
