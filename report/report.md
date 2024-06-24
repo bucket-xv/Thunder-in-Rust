@@ -57,43 +57,8 @@ pub fn menu_plugin(app: &mut App) {
         .add_systems(
             OnExit(MenuState::Levels),
             despawn_screen::<OnLevelsMenuScreen>,
-        )
-        // Systems to handle the settings menu screen
-        .add_systems(OnEnter(MenuState::Settings), settings_menu_setup)
-        .add_systems(
-            OnExit(MenuState::Settings),
-            despawn_screen::<OnSettingsMenuScreen>,
-        )
-        // Systems to handle the display settings screen
-        .add_systems(
-            OnEnter(MenuState::SettingsDisplay),
-            display_settings_menu_setup,
-        )
-        .add_systems(
-            Update,
-            (setting_button::<DisplayQuality>.run_if(in_state(MenuState::SettingsDisplay)),),
-        )
-        .add_systems(
-            OnExit(MenuState::SettingsDisplay),
-            despawn_screen::<OnDisplaySettingsMenuScreen>,
-        )
-        // Systems to handle the sound settings screen
-        .add_systems(OnEnter(MenuState::SettingsSound), sound_settings_menu_setup)
-        .add_systems(
-            Update,
-            setting_button::<Volume>.run_if(in_state(MenuState::SettingsSound)),
-        )
-        .add_systems(
-            OnExit(MenuState::SettingsSound),
-            despawn_screen::<OnSoundSettingsMenuScreen>,
-        )
-        // Common systems to all screens that handles buttons behavior
-        .add_systems(
-            Update,
-            (menu_action, button_system).run_if(in_state(GameState::Menu)),
-        )
-        .add_systems(OnEnter(MenuState::Help), help_screen_setup)
-        .add_systems(OnExit(MenuState::Help), despawn_screen::<OnHelpScreen>);
+        );
+    //omitted
 }
 ```
 
@@ -116,15 +81,15 @@ pub enum MenuState {
 从这个 enum 的定义可以清晰地看出菜单的几个状态，即主菜单，关卡选择，设置，设置显示，设置声音，帮助和禁用状态。
 主菜单样式如图：
 
-![image-20240623143346139](./images/image-20240623143346139.png)
+<img src="images/main_menu.png" alt="MainMenu" width=400>
 
 System `main_menu_setup` 会在 `Menustate` 变为 `Main` 状态时运行，利用 `commands.spawn` 和一个 `asset_server` (用来加载图标等多媒体素材)，在屏幕中央渲染出菜单界面以及其中的各个按钮。菜单界面的层次结构是利用 spawn bundle 时的 parent-children 特性实现，在 spawn 一个 bundle 后，可以用 `.with_children(|parent| {...})` 传入一个closure，closure中可以继续用`parent.spawn` 生成子元素。例如上图中，最底层的背景板是一个 `NodeBundle`, 它的儿子是另一个`NodeBundle`即中间的红框，红框有五个儿子，分别是一个 `TextBundle` "Thunder" 和四个 `ButtonBundle`, 而四个 `ButtonBundle` 分别各有一个儿子 `TextBundle` 用来写对应的图标和文字。这种树形结构使得菜单的组织非常清晰。
 
 Button 被点击之后的跳转也是通过若干个 system 实现，他们监听按钮交互事件并对`MenuState` 和 `GameState` 作出相应的修改，从而使游戏在 State Machine 上移动。例如 `menu_action` 是对主菜单各按钮点击交互的处理：
 
 ```rust
-fn menu_action(...) {
-    ...
+pub fn menu_action(...) {
+    //omitted
     match menu_button_action {
         MenuButtonAction::Quit => {
             app_exit_events.send(AppExit);
@@ -136,16 +101,7 @@ fn menu_action(...) {
         MenuButtonAction::SettingsDisplay => {
             menu_state.set(MenuState::SettingsDisplay);
         }
-        MenuButtonAction::SettingsSound => {
-            menu_state.set(MenuState::SettingsSound);
-        }
-        MenuButtonAction::BackToMainMenu => menu_state.set(MenuState::Main),
-        MenuButtonAction::BackToSettings => {
-            menu_state.set(MenuState::Settings);
-        }
-        MenuButtonAction::GoToHelp => {
-            menu_state.set(MenuState::Help);
-        }
+        //ommitted
     }
 }
 ```
@@ -154,7 +110,7 @@ fn menu_action(...) {
 
 在主菜单中点击 New Game 会进入关卡选择界面。
 
-![image-20240623154431320](./images/image-20240623154431320.png)
+<img src="images/level_select.png" alt="LevelSelect" width=400>
 
 关卡的实现机制是定义了一个全局的 resource：
 
@@ -164,18 +120,16 @@ fn menu_action(...) {
 struct Level(u32);
 ```
 
-在菜单中用上文介绍的方法和思路渲染出 level select menu，并设计一个 level button 的交互系统。与设置部分等按钮交互系统不同的是，level按钮在选择之后，应该既像其他设置一样更新对应的resource，但又不能仍然停留在 menu 界面，而是应该进入游戏。具体实现中，我们还加入了一个 level splash screen（`level_splash.rs`) ，用于在进入游戏之前显示当前关卡，level splash screen 结束之后进入游戏。在生成敌人以及配置武器时，会根据 level 这个 resource 的值来进行不同的配置，从而实现关卡机制。
+在菜单中用上文介绍的方法和思路渲染出 level select menu，并设计一个 level button 的交互系统。与设置部分等按钮交互系统不同的是，level按钮在选择之后，应该既像其他设置一样更新对应的resource，但又不能仍然停留在 menu 界面，而是应该进入游戏。具体实现中，我们还加入了一个 level splash screen（`level_splash.rs`） ，用于在进入游戏之前显示当前关卡，level splash screen 结束之后进入游戏。在生成敌人以及配置武器时，会根据 level 这个 resource 的值来进行不同的配置，从而实现关卡机制。
 
 #### 结算
 
-结算界面设计为`gmae`下的一个子module`win_lose_screen`，在其中实现了胜利界面、失败界面和通关界面，同样使用Bevy Plugin的形式实现，三个界面的实现逻辑类似，下面以胜利界面为例：
+结算界面设计为`game`下的一个子module`win_lose_screen`，在其中实现了胜利界面、失败界面和通关界面，同样使用Bevy Plugin的形式实现，三个界面的实现逻辑类似，下面以胜利界面为例：
 
 ```rust
 pub fn win_lose_screen_plugin(app: &mut App) {
     app.init_state::<WinLoseScreenState>()
         .add_systems(OnEnter(GameState::Win), win_screen_setup)
-        .add_systems(OnEnter(GameState::Lose), lose_screen_setup)
-        .add_systems(OnEnter(GameState::Completion), completion_screen_setup)
         .add_systems(
             OnEnter(WinLoseScreenState::BackToMainMenu),
             back_to_main_menu,
@@ -186,24 +140,12 @@ pub fn win_lose_screen_plugin(app: &mut App) {
             Update,
             (win_lose_screen_action, button_system).run_if(in_state(GameState::Win)),
         )
-        .add_systems(
-            Update,
-            (win_lose_screen_action, button_system).run_if(in_state(GameState::Lose)),
-        )
-        .add_systems(
-            Update,
-            (win_lose_screen_action, button_system).run_if(in_state(GameState::Completion)),
-        )
         .add_systems(OnExit(GameState::Win), despawn_screen::<OnWinScreen>)
-        .add_systems(OnExit(GameState::Lose), despawn_screen::<OnLoseScreen>)
-        .add_systems(
-            OnExit(GameState::Completion),
-            despawn_screen::<OnCompleteScreen>,
-        );
+    //omitted
 }
 ```
 
-胜利界面的`enum`如下：
+胜利界面的`enum`如下，每个可能分别对应了下图中的一个按钮：
 
 ```rust
 enum WinLoseScreenState {
@@ -215,37 +157,13 @@ enum WinLoseScreenState {
 }
 ```
 
-![Win](./images/Win.png)
+<img src="images/Win.png" alt="Win" width=400>
 
 通过监控游戏中的Player血量以及剩余的敌人数量来判定游戏的输赢(`GameState::Win`)，`Retry`按钮进入`WinLoseScreenState::Restart`，`NextLevel`会进入`WinLoseScreenState::NextLevel`，进而调用system`next_level`更新关卡参数`level_setting`进入下一关(最后一关进行特判确定是否通过所有关卡`GameState::Completion`)。
 
 #### 暂停
 
-Thunder的的暂停菜单设计为`game`下的一个子module`esc_menu`，以一个Bevy Plugin的形式实现，和主菜单逻辑类似，通过进出状态(State-System)控制各菜单的渲染、点击按钮时的交互以及状态转移前屏幕元素的清除，具体的代码如下： 
-
-```rust
-pub fn esc_menu_plugin(app: &mut App) {
-    app.init_state::<EscMenuState>()
-        .add_systems(OnEnter(GameState::Stopped), esc_menu_setup)
-        .add_systems(OnEnter(EscMenuState::MainEscMenu), esc_main_menu_setup)
-        .add_systems(OnEnter(EscMenuState::BackToMainMenu), back_to_main_menu)
-        .add_systems(OnEnter(EscMenuState::BackToGame), back_to_game)
-        .add_systems(OnEnter(EscMenuState::Help), help_screen_setup)
-        .add_systems(OnExit(EscMenuState::Help), despawn_screen::<OnHelpScreen>)
-        .add_systems(
-            Update,
-            (esc_menu_action, button_system).run_if(in_state(EscMenuState::Help)),
-        )
-        .add_systems(
-            Update,
-            (esc_menu_action, button_system).run_if(in_state(EscMenuState::MainEscMenu)),
-        )
-        .add_systems(
-            OnExit(EscMenuState::MainEscMenu),
-            despawn_screen::<OnMainEscMenuScreen>,
-        );
-}
-```
+Thunder的的暂停菜单设计为`game`下的一个子module`esc_menu`，以一个Bevy Plugin的形式实现，和主菜单逻辑类似，通过进出状态(State-System)控制各菜单的渲染、点击按钮时的交互以及状态转移前屏幕元素的清除。因为与结算界面相似，这里不再展示代码。
 
 更具体地，我们将暂停菜单的状态定义为一个`enum`：
 
@@ -264,7 +182,7 @@ enum EscMenuState {
 
 在暂停菜单中，我们提供了四个选项：返回游戏`Continue`，返回主菜单`Home`，帮助`Help`和退出游戏`Exit`。具体界面如下：
 
-![Pause](./images/Pause.png)
+<img src="./images/Pause.png" alt="Pause" width=400/>
 
 和主界面逻辑类似，在进入`GameState::Stopped`后会调用`esc_menu_setup`将`EscMenuState`设置成`MainEscMenu`，进而调用`esc_main_menu_setup`。使用`commands.spawn` 和`asset_server` (用来加载图标等多媒体素材)，在屏幕中央渲染出菜单界面以及其中的各个按钮。层次结构是利用 `spawn bundle` 时的 `parent-children` 特性实现。详细代码较为复杂，不在报告中展示。
 
@@ -294,7 +212,7 @@ match esc_menu_button_action {
 
 游戏界面：
 
-![image-20240623155022954](./images/image-20240623155022954.png)
+<img src="images/game_logic.png" alt="GameLogic" width=400>
 
 Thunder 的游戏逻辑在 `game` 模块中实现，这也是最核心的一个模块。`game.rs` 实现了一个插件 `game_plugin`，其核心代码如下：
 
@@ -331,11 +249,12 @@ pub fn game_plugin(app: &mut App) {
 
 从中可以看出，在每一帧刷新时，`game_plugin`将会依次执行`generate_enemy,shoot_gun,apply_velocity,clear_laser,move_player_plane...`等一系列函数。也就是说，该`plugin`在每帧刷新时将会：
 
-1. 生成敌人。敌人的具体配置由`game/config.rs`决定，不同的关卡和不同波次会有很大的区别。
-2. 武器发射子弹。一种武器是加特林机枪，它会向前打出连续的子弹。另一种武器是激光，他会打出镭射。和子弹不同的是，激光镭射是触发时立刻打出一个矩形向上方射出，该矩形延伸至上方边界，并会对矩形内部所有敌机产生伤害。
-3. 处理移动。无论是敌机还是玩家飞机，都需要根据速度和方向进行移动。敌机的速度由配置给出，而玩家的速度由键盘输入决定。
-4. 碰撞检测。检测子弹和飞机的碰撞，以及激光和飞机的碰撞。如果发生碰撞，会根据配置给出的伤害值对应飞机的生命值。
-5. 更新计分板。根据击杀敌机的数量和玩家飞机剩下的血量更新左上角的计分板。
+1. 生成敌人（`generate_enemy`）。敌人的具体配置由`game/config.rs`决定，不同的关卡和不同波次会有很大的区别。
+2. 武器发射子弹（`shoot_gun,shoot_laser`）。一种武器是加特林机枪，它会向前打出连续的子弹。另一种武器是激光，他会打出镭射。和子弹不同的是，激光镭射是触发时立刻打出一个矩形向上方射出，该矩形延伸至上方边界，并会对矩形内部所有敌机产生伤害。
+3. 处理移动（`move_player_plane,apply_velocity`）。无论是敌机还是玩家飞机，都需要根据速度和方向进行移动。敌机的速度由配置给出，而玩家的速度由键盘输入决定。
+4. 碰撞检测（` check_for_bullet_hitting,check_for_laserray_hitting,check_for_laser_star_capture,`）。检测子弹和飞机的碰撞，激光和飞机的碰撞，以及星星和玩家飞机的碰撞。如果发生碰撞，调用相应的处理函数。
+5. 更新计分板（`update_scoreboard,update_hpboard,update_laserboard,`）。根据击杀敌机的数量和玩家飞机剩下的血量更新左上角的计分板。
+6. 其他功能函数，例如检测是否进入下一波敌机（`check_for_next_wave`），清除上一帧的激光（`clear_laser`）等。
 
 ### 网页端的开发与部署
 
@@ -344,7 +263,9 @@ pub fn game_plugin(app: &mut App) {
 ```bash
 linux-web:
 	cargo build --release --target wasm32-unknown-unknown
-	wasm-bindgen --no-typescript --target web --out-dir ./docs/ --out-name "thunder" ./target/wasm32-unknown-unknown/release/thunder.wasm
+	wasm-bindgen --no-typescript --target web --out-dir\
+    ./docs/ --out-name "thunder"\
+    ./target/wasm32-unknown-unknown/release/thunder.wasm
 	cp -r assets docs
 ```
 
