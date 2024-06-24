@@ -89,6 +89,7 @@ pub fn game_plugin(app: &mut App) {
             (
                 generate_enemy,
                 shoot_gun,
+                control_velocity,
                 apply_velocity,
                 clear_laser,
                 move_player_plane,
@@ -563,6 +564,17 @@ fn move_player_plane(
         Vec3::new(left_bound, down_bound, 0.0),
         Vec3::new(right_bound, up_bound, 0.0),
     );
+}
+
+fn control_velocity(mut query: Query<(&mut Velocity, &mut VelocityController)>, time: Res<Time>) {
+    for (mut velocity, mut controller) in &mut query {
+        if controller.1.tick(time.delta()).finished() {
+            let mode = controller.0.pop_front().unwrap();
+            *velocity = mode.velocity;
+            controller.1.reset();
+            controller.0.push_back(mode);
+        }
+    }
 }
 
 fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, time: Res<Time>) {

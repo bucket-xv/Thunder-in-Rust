@@ -126,13 +126,10 @@ fn gen_enemy(
         AnimationTimer(Timer::from_seconds(2000000000.0, TimerMode::Repeating)),
         Enemy,
         Velocity(Vec2::ZERO),
-        {
-            let time = enemy_config.moving_mode.front().unwrap().time;
-            VelocityController(
-                enemy_config.moving_mode,
-                Timer::from_seconds(time, TimerMode::Once),
-            )
-        },
+        VelocityController(
+            enemy_config.moving_mode,
+            Timer::from_seconds(0.0, TimerMode::Once),
+        ),
     )
 }
 
