@@ -106,6 +106,15 @@ impl MovingMode {
     }
 }
 
+impl Default for MovingMode {
+    fn default() -> Self {
+        MovingMode {
+            velocity: Velocity(Vec2::ZERO),
+            time: 10.0,
+        }
+    }
+}
+
 impl Default for EnemyConfig {
     fn default() -> Self {
         EnemyConfig {
@@ -120,10 +129,7 @@ impl Default for EnemyConfig {
             bullet_diameter: BULLET_DIAMETER,
             shooting_interval: BULLET_SHOOTING_INTERVAL,
             // default moving mode is no moving with speed = 0
-            moving_mode: VecDeque::from([MovingMode {
-                velocity: Velocity(Vec2::ZERO),
-                time: 10.0,
-            }]),
+            moving_mode: VecDeque::from([MovingMode::default()]),
         }
     }
 }
