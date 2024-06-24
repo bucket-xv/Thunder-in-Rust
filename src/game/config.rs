@@ -1,6 +1,8 @@
 //! This is all the default settings for game.rs.
 //! It includes the default user plane, default enemy plane and default enemy generation plan.
 
+use std::collections::VecDeque;
+
 use bevy::math::Vec2;
 use bevy::render::color::Color;
 use rand::{thread_rng, Rng};
@@ -74,6 +76,7 @@ impl Default for BulletDirectionConfig {
     }
 }
 
+#[derive(Clone)]
 pub struct EnemyConfig {
     pub position: PositionConfig,
     pub scale: Vec2,
@@ -85,12 +88,12 @@ pub struct EnemyConfig {
     pub bullet_direction: BulletDirectionConfig,
     pub bullet_diameter: f32,
     pub shooting_interval: f32,
-    pub moving_mode: Vec<MovingMode>,
+    pub moving_mode: VecDeque<MovingMode>,
 }
 
+#[derive(Clone, Copy)]
 pub struct MovingMode {
-    pub speed: f32,
-    pub direction: f32,
+    pub velocity: Velocity,
     pub time: f32,
 }
 
@@ -108,11 +111,10 @@ impl Default for EnemyConfig {
             bullet_diameter: BULLET_DIAMETER,
             shooting_interval: BULLET_SHOOTING_INTERVAL,
             // default moving mode is no moving with speed = 0
-            moving_mode: vec![MovingMode {
-                speed: 0.0,
-                direction: 0.0,
+            moving_mode: VecDeque::from([MovingMode {
+                velocity: Velocity(Vec2::ZERO),
                 time: 10.0,
-            }],
+            }]),
         }
     }
 }

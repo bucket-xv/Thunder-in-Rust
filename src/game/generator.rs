@@ -73,19 +73,19 @@ pub fn gen_user_plane(
 pub fn gen_wave(level: u32, wave: u32) -> Vec<impl Bundle> {
     let config = WaveConfig::get(level, wave);
     match config {
-        WaveConfig::Duplicate(enemy_config, enemy_num) => {
-            (0..enemy_num).map(|_| gen_enemy(&enemy_config)).collect()
-        }
+        WaveConfig::Duplicate(enemy_config, enemy_num) => (0..enemy_num)
+            .map(|_| gen_enemy(enemy_config.clone()))
+            .collect(),
 
         WaveConfig::Detailed(enemy_configs) => enemy_configs
-            .iter()
-            .map(|enemy_config| gen_enemy(&enemy_config))
+            .into_iter()
+            .map(|enemy_config| gen_enemy(enemy_config))
             .collect(),
     }
 }
 
 fn gen_enemy(
-    enemy_config: &EnemyConfig,
+    enemy_config: EnemyConfig,
     // mut _rng: &mut ResMut<GlobalEntropy<WyRand>>,
 ) -> impl Bundle {
     // let plane_x = rng
@@ -125,6 +125,14 @@ fn gen_enemy(
         AnimationIndices { first: 0, last: 0 },
         AnimationTimer(Timer::from_seconds(2000000000.0, TimerMode::Repeating)),
         Enemy,
+        Velocity(Vec2::ZERO),
+        {
+            let time = enemy_config.moving_mode.front().unwrap().time;
+            VelocityController(
+                enemy_config.moving_mode,
+                Timer::from_seconds(time, TimerMode::Once),
+            )
+        },
     )
 }
 

@@ -19,8 +19,10 @@ use bevy::{
     sprite::MaterialMesh2dBundle,
 };
 use bevy_spritesheet_animation::prelude::SpritesheetLibrary;
+use config::MovingMode;
 use core::f32::consts::PI;
 use laser::{add_laser_star, remove_laser_star};
+use std::collections::VecDeque;
 // use bevy_rand::prelude::WyRand;
 // use bevy_rand::resource::GlobalEntropy;
 // use rand::Rng;
@@ -403,8 +405,11 @@ struct AttackTarget;
 #[derive(Component)]
 struct HP(u32);
 
-#[derive(Component, Deref, DerefMut)]
+#[derive(Component, Deref, DerefMut, Clone, Copy)]
 struct Velocity(Vec2);
+
+#[derive(Component)]
+struct VelocityController(VecDeque<MovingMode>, Timer);
 
 #[derive(Event)]
 enum HittingEvent {
