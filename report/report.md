@@ -22,7 +22,7 @@
 
 ### 背景：`Bevy`游戏引擎
 
-（胡宇阳）
+Bevy是一个开源的Rust游戏引擎，它为开发者提供了一个跨平台的框架，用于开发游戏。这个引擎的特点是它是ECS引擎，ECS是指Entity-Component-System，每一个Entity都有自己的Component，每一个Component都是一个struct，System和Component的关系是通过World和Entity索引建立的。Bevy内置了很多system的plugins，开发者可以自由组合所需要的功能，来设计玩法，界面，使用计算机中的各种设备。
 
 ### 代码设计
 

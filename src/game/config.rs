@@ -217,10 +217,6 @@ impl WaveConfig {
                     hp: 100,
                     bullet_speed: 250.0,
                     shooting_interval: 1.0,
-                    moving_mode: VecDeque::from([
-                        MovingMode::new(100.0, -100.0, 1.0),
-                        MovingMode::new(-100.0, 100.0, 1.0),
-                    ]),
                     ..default()
                 },
                 1,
@@ -618,13 +614,17 @@ impl WaveConfig {
             (4, 2) => WaveConfig::Detailed(vec![
                 EnemyConfig {
                     position: PositionConfig::Random(
-                        Vec2::new(0.9 * LEFT_WALL, 0.7 * LEFT_WALL),
+                        Vec2::new(0.8 * LEFT_WALL, 0.7 * LEFT_WALL),
                         Vec2::new(0.2 * TOP_WALL, 0.8 * TOP_WALL),
                     ),
                     bullet_direction: BulletDirectionConfig::Trace,
                     bullet_speed: 400.0,
                     shooting_interval: 0.4,
                     hp: 80,
+                    moving_mode: VecDeque::from([
+                        MovingMode::new(0.1 * LEFT_WALL, 0.0, 1.0),
+                        MovingMode::new(0.0, 0.1 * LEFT_WALL, 1.0),
+                    ]),
                     ..default()
                 },
                 EnemyConfig {
@@ -636,6 +636,10 @@ impl WaveConfig {
                     bullet_speed: 400.0,
                     shooting_interval: 0.4,
                     hp: 120,
+                    moving_mode: VecDeque::from([
+                        MovingMode::new(0.1 * LEFT_WALL, 0.0, 1.0),
+                        MovingMode::new(0.0, 0.1 * LEFT_WALL, 1.0),
+                    ]),
                     ..default()
                 },
                 EnemyConfig {
@@ -647,6 +651,10 @@ impl WaveConfig {
                     bullet_speed: 400.0,
                     shooting_interval: 0.4,
                     hp: 120,
+                    moving_mode: VecDeque::from([
+                        MovingMode::new(0.1 * LEFT_WALL, 0.0, 1.0),
+                        MovingMode::new(0.0, 0.1 * LEFT_WALL, 1.0),
+                    ]),
                     ..default()
                 },
                 EnemyConfig {
@@ -658,6 +666,10 @@ impl WaveConfig {
                     bullet_speed: 400.0,
                     shooting_interval: 0.4,
                     hp: 120,
+                    moving_mode: VecDeque::from([
+                        MovingMode::new(0.1 * LEFT_WALL, 0.0, 1.0),
+                        MovingMode::new(0.0, 0.1 * LEFT_WALL, 1.0),
+                    ]),
                     ..default()
                 },
                 EnemyConfig {
@@ -669,6 +681,10 @@ impl WaveConfig {
                     bullet_speed: 400.0,
                     shooting_interval: 0.4,
                     hp: 120,
+                    moving_mode: VecDeque::from([
+                        MovingMode::new(0.1 * LEFT_WALL, 0.0, 1.0),
+                        MovingMode::new(0.0, 0.1 * LEFT_WALL, 1.0),
+                    ]),
                     ..default()
                 },
             ]),
