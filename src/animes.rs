@@ -34,6 +34,7 @@ pub fn animate_sprite(
 pub fn setup_anime_periodical(
     atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
     assets: &Res<AssetServer>,
+    position: Vec2,
     texture_dir: String,
     number_of_frames: usize,
 ) -> SpriteSheetBundle {
@@ -58,6 +59,7 @@ pub fn setup_anime_periodical(
     ));
 
     return SpriteSheetBundle {
+        transform: Transform::from_translation(Vec3::new(position.x, position.y, 0.0)),
         texture,
         atlas: TextureAtlas {
             layout,

@@ -19,6 +19,7 @@ pub fn gen_user_plane(
         setup_anime_periodical(
             &mut atlas_layouts,
             &asset_server,
+            Vec2::default(),
             "textures/entities/player.png".to_string(),
             8,
         ),
@@ -69,7 +70,7 @@ pub fn gen_user_plane(
 pub fn gen_wave(
     atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
     asset_server: &Res<AssetServer>,
-    level: u32, 
+    level: u32,
     wave: u32,
 ) -> Vec<impl Bundle> {
     let config = WaveConfig::get(level, wave);
@@ -99,6 +100,7 @@ fn gen_enemy(
         setup_anime_periodical(
             atlas_layouts,
             asset_server,
+            enemy_config.position.gen(),
             "textures/entities/enemy.png".to_string(),
             32,
         ),
