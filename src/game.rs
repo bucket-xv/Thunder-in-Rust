@@ -667,7 +667,13 @@ fn check_for_bullet_hitting(
     mut scoreboard: ResMut<Scoreboard>,
     bullet_query: Query<(Entity, &Transform), With<Bullet>>,
     mut attack_target_query: Query<
-        (Entity, &Transform, Option<&mut HP>, Option<&Player>),
+        (
+            Entity,
+            &Transform,
+            Option<&mut HP>,
+            Option<&Player>,
+            Option<&Plane>,
+        ),
         With<AttackTarget>,
     >,
     mut hitting_events: EventWriter<HittingEvent>,
@@ -675,15 +681,22 @@ fn check_for_bullet_hitting(
 ) {
     for (bullet_entity, bullet_transform) in bullet_query.iter() {
         let mut despawn_bullet = false;
-        for (target_entity, transform, maybe_hp, maybe_player) in &mut attack_target_query {
+        for (target_entity, transform, maybe_hp, maybe_player, maybe_plane) in
+            &mut attack_target_query
+        {
             let bullet_shape = BoundingCircle::new(
                 bullet_transform.translation.truncate(),
                 BULLET_DIAMETER / 2.,
             );
-            let bullet_target_shape = Aabb2d::new(
-                transform.translation.truncate(),
-                transform.scale.truncate() / 2.,
-            );
+            let bullet_target_shape = match maybe_plane {
+                Some(_) => {
+                    Aabb2d::new(transform.translation.truncate(), PLANE_SIZE.truncate() / 2.)
+                }
+                None => Aabb2d::new(
+                    transform.translation.truncate(),
+                    transform.scale.truncate() / 2.,
+                ),
+            };
 
             if bullet_shape.intersects(&bullet_target_shape) {
                 // Sends a hitting event so that other systems can react to the hitting

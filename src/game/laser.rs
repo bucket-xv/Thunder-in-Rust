@@ -97,7 +97,13 @@ pub(super) fn check_for_laserray_hitting(
     mut laser_attack_timer: ResMut<LaserAttackTimer>,
     mut laserray_query: Query<&Transform, With<LaserRay>>,
     mut attack_target_query: Query<
-        (Entity, &Transform, Option<&mut HP>, Option<&Player>),
+        (
+            Entity,
+            &Transform,
+            Option<&mut HP>,
+            Option<&Player>,
+            Option<&Plane>,
+        ),
         With<AttackTarget>,
     >,
     mut hitting_events: EventWriter<HittingEvent>,
@@ -106,7 +112,9 @@ pub(super) fn check_for_laserray_hitting(
         return;
     }
     for laserray_transform in &mut laserray_query {
-        for (target_entity, target_transform, maybe_hp, maybe_player) in &mut attack_target_query {
+        for (target_entity, target_transform, maybe_hp, maybe_player, maybe_plane) in
+            &mut attack_target_query
+        {
             if maybe_player.is_some() {
                 continue;
             }
@@ -114,10 +122,16 @@ pub(super) fn check_for_laserray_hitting(
                 laserray_transform.translation.truncate(),
                 laserray_transform.scale.truncate() / 2.,
             );
-            let bullet_target_shape = Aabb2d::new(
-                target_transform.translation.truncate(),
-                target_transform.scale.truncate() / 2.,
-            );
+            let bullet_target_shape = match maybe_plane {
+                Some(_) => Aabb2d::new(
+                    target_transform.translation.truncate(),
+                    PLANE_SIZE.truncate() / 2.,
+                ),
+                None => Aabb2d::new(
+                    target_transform.translation.truncate(),
+                    target_transform.scale.truncate() / 2.,
+                ),
+            };
 
             if laserray_shape.intersects(&bullet_target_shape) {
                 // Bricks should be despawned and increment the scoreboard on hitting
@@ -265,8 +279,9 @@ pub(super) fn check_for_laser_star_capture(
     let (player_transform, mut player_laser) = player_plane_query.single_mut();
     let player_shape = Aabb2d::new(
         player_transform.translation.truncate(),
-        player_transform.scale.truncate() / 2.,
+        PLANE_SIZE.truncate() / 2.,
     );
+
     let laser_star_shape = BoundingCircle::new(laser_star_transform.translation.truncate(), 20.0);
     if player_shape.intersects(&laser_star_shape) {
         commands.entity(laser_star_entity).despawn();
